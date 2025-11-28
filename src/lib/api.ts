@@ -151,3 +151,47 @@ export interface Project {
 export function getProjects(): Promise<Project[]> {
   return apiGet<Project[]>("/projects");
 }
+
+// ---- Project quality / gap analysis types & helpers ----
+
+// Reuse your existing ProjectObligationStatus type from this file.
+// If the name differs, adjust the import below accordingly.
+export interface ProjectQualitySummary {
+  project_id: string;
+  completion_percent: number;
+  evidence_coverage_percent: number;
+  overdue_count: number;
+  high_risk_gaps: number;
+  overall_risk_score: number;
+}
+
+export type ProjectGapReason =
+  | "overdue"
+  | "missing_evidence"
+  | "not_started"
+  | string;
+
+export interface ProjectGapItem {
+  obligation_id: string;
+  reference: string | null;
+  short_label: string | null;
+  status: ProjectObligationStatus; // already defined in this file
+  due_date: string | null;
+  has_evidence: boolean;
+  reason: ProjectGapReason;
+}
+
+export interface ProjectQualityDetail {
+  summary: ProjectQualitySummary;
+  gaps: ProjectGapItem[];
+}
+
+/**
+ * Fetch quality / gap analysis for a project.
+ * Backend: GET /projects/{project_id}/quality
+ */
+export function getProjectQuality(
+  projectId: string,
+): Promise<ProjectQualityDetail> {
+  return apiGet<ProjectQualityDetail>(`/projects/${projectId}/quality`);
+}

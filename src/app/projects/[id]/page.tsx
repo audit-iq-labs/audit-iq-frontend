@@ -1,12 +1,14 @@
 import {
   getProjectChecklist,
   getProjectSummary,
+  getProjectQuality,
   ProjectChecklistItem,
   ProjectChecklistSummary,
 } from "@/lib/api";
 import ProjectDashboard from "@/components/ProjectDashboard";
+import ProjectOverviewPanel from "@/components/ProjectOverviewPanel";
 
-// Next 16 passes params as a Promise in server components
+// Next 13 passes params as a Promise in server components
 interface RouteParams {
   id: string;
 }
@@ -16,16 +18,26 @@ interface Props {
 }
 
 export default async function ProjectPage({ params }: Props) {
-  // 🔑 unwrap the Promise to get the actual params object
-  const { id: projectId } = await params;
+  const { id } = await params;
+  const projectId = id;
 
-  const [summary, checklist] = await Promise.all([
+  // Fetch everything in parallel
+  const [summary, checklist, quality] = await Promise.all([
     getProjectSummary(projectId),
     getProjectChecklist(projectId),
+    getProjectQuality(projectId),
   ]);
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="mx-auto max-w-5xl space-y-6">
+      {/* New high-level overview, read-only */}
+      <ProjectOverviewPanel
+        projectId={projectId}
+        summary={summary}
+        quality={quality}
+      />
+
+      {/* Existing interactive checklist & evidence dashboard */}
       <ProjectDashboard
         projectId={projectId}
         summary={summary}
