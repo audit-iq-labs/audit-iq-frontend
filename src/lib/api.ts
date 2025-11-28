@@ -1,14 +1,20 @@
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+export type EvidenceFileType = "pdf" | "docx" | "xlsx" | "url" | "other";
+
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`);
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    // optional: avoid caching if you always want fresh data
+    // cache: "no-store",
+  });
 
   if (!res.ok) {
-    throw new Error(`API error ${res.status}`);
+    // You can enhance this later to parse error body
+    throw new Error(`API error ${res.status} on GET ${path}`);
   }
 
-  return res.json();
+  return (await res.json()) as T;
 }
 
 export async function apiPut<T>(path: string, body: any): Promise<T> {
@@ -19,10 +25,10 @@ export async function apiPut<T>(path: string, body: any): Promise<T> {
   });
 
   if (!res.ok) {
-    throw new Error(`API error ${res.status}`);
+    throw new Error(`API error ${res.status} on PUT ${path}`);
   }
 
-  return res.json();
+  return (await res.json()) as T;
 }
 
 export async function apiPost<T>(path: string, body: any): Promise<T> {
@@ -33,10 +39,10 @@ export async function apiPost<T>(path: string, body: any): Promise<T> {
   });
 
   if (!res.ok) {
-    throw new Error(`API error ${res.status}`);
+    throw new Error(`API error ${res.status} on POST ${path}`);
   }
 
-  return res.json();
+  return (await res.json()) as T;
 }
 
 export async function apiDelete(path: string): Promise<void> {
@@ -44,7 +50,104 @@ export async function apiDelete(path: string): Promise<void> {
     method: "DELETE",
   });
 
+  // Allow 204 (no content) as success
   if (!res.ok && res.status !== 204) {
-    throw new Error(`API error ${res.status}`);
+    throw new Error(`API error ${res.status} on DELETE ${path}`);
   }
+}
+
+// ---- Project checklist / summary types ----
+
+export type ProjectObligationStatus =
+  | "todo"
+  | "in_progress"
+  | "done"
+  | "not_applicable";
+
+export interface ProjectChecklistSummary {
+  project_id: string;
+  total_items: number;
+  by_status: Record<ProjectObligationStatus, number>;
+  completion_percent: number;
+}
+
+export interface ProjectChecklistItem {
+  id: string;
+  obligation_id: string;
+  obligation_type: string | null;
+  summary: string;
+  short_label: string | null;
+  justification: string | null;
+  status: ProjectObligationStatus;
+  reference: string | null;
+  due_date: string | null; // ISO date string or null
+  evidence_count: number;
+}
+
+export interface EvidenceLite {
+  id: string;
+  title: string;
+  storage_url: string | null;
+  file_type: string | null;
+}
+
+export interface ChecklistWithEvidence {
+  obligation_id: string;
+  reference: string | null;
+  short_label: string | null;
+  status: ProjectObligationStatus;
+  due_date: string | null;
+  justification: string | null;
+  evidence_count: number;
+  evidence: EvidenceLite[];
+}
+
+// ---- Project-specific API helpers ----
+
+export function getProjectSummary(
+  projectId: string,
+): Promise<ProjectChecklistSummary> {
+  return apiGet<ProjectChecklistSummary>(`/projects/${projectId}/summary`);
+}
+
+export function getProjectChecklist(
+  projectId: string,
+): Promise<ProjectChecklistItem[]> {
+  return apiGet<ProjectChecklistItem[]>(`/projects/${projectId}/checklist`);
+}
+
+export function getProjectChecklistWithEvidence(
+  projectId: string,
+): Promise<ChecklistWithEvidence[]> {
+  return apiGet<ChecklistWithEvidence[]>(
+    `/projects/${projectId}/checklist-with-evidence`,
+  );
+}
+
+// src/lib/api.ts
+
+export interface EvidenceItem {
+  id: string;
+  project_id: string;
+  obligation_id: string | null;
+  title: string;
+  description: string | null;
+  storage_url: string | null;
+  file_type: EvidenceFileType | null;
+  uploaded_at: string; // ISO timestamp
+}
+
+// ---- Project list types & helpers ----
+
+export interface Project {
+  id: string;
+  name: string;
+  // optional fields – adjust to match your API if needed
+  regulation?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function getProjects(): Promise<Project[]> {
+  return apiGet<Project[]>("/projects");
 }

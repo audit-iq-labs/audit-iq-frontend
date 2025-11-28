@@ -1,52 +1,32 @@
-'use client';
+"use client";
 
 import React from "react";
-import { apiPut, apiPost, apiGet, apiDelete } from "@/lib/api";
-
-export interface Obligation {
-  id: string;
-  obligation_id: string;
-  obligation_type: string;
-  summary: string;
-  short_label: string;
-  justification: string | null;
-}
-
-export interface Summary {
-  project_id: string;
-  total_items: number;
-  by_status: {
-    not_applicable: number;
-    todo: number;
-    in_progress: number;
-    done: number;
-  };
-  completion_percent: number;
-}
-
-
-// checklist row = obligation + status flag
-export interface ChecklistItem extends Obligation {
-  status: "not_applicable" | "todo" | "in_progress" | "done";
-  reference?: string | null;
-  due_date?: string | null;
-  evidence_count?: number;
-}
-
-interface EvidenceItem {
-  id: string;
-  project_id: string;
-  obligation_id: string;
-  title: string;
-  description: string | null;
-  uploaded_at: string;
-}
+import {
+  apiPut,
+  apiPost,
+  apiGet,
+  apiDelete,
+  ProjectChecklistSummary,
+  ProjectChecklistItem,
+  EvidenceItem,
+  ProjectObligationStatus,
+} from "@/lib/api";
 
 interface Props {
   projectId: string;
-  summary: Summary;
-  checklist: ChecklistItem[];
+  summary: ProjectChecklistSummary;
+  checklist: ProjectChecklistItem[];
 }
+
+// Local alias so the code reads nicely
+type ChecklistItem = ProjectChecklistItem;
+
+const STATUS_LABELS: Record<ProjectObligationStatus, string> = {
+  todo: "To do",
+  in_progress: "In progress",
+  done: "Done",
+  not_applicable: "Not applicable",
+};
 
 export default function ProjectDashboard({
   projectId,
@@ -63,7 +43,7 @@ export default function ProjectDashboard({
     open: boolean;
     loading: boolean;
     obligationId: string | null;
-    shortLabel: string;
+    shortLabel: string | null;
     items: EvidenceItem[];
     newTitle: string;
     newDescription: string;
@@ -71,7 +51,7 @@ export default function ProjectDashboard({
     open: false,
     loading: false,
     obligationId: null,
-    shortLabel: "",
+    shortLabel: null,
     items: [],
     newTitle: "",
     newDescription: "",
@@ -82,15 +62,18 @@ export default function ProjectDashboard({
   }, [checklist]);
 
   // ------- Status update --------
-  async function handleStatusChange(item: ChecklistItem, newStatus: string) {
+  async function handleStatusChange(
+    item: ChecklistItem,
+    newStatus: ProjectObligationStatus,
+  ) {
     try {
       const updated = await apiPut<ChecklistItem>(
         `/projects/${projectId}/checklist/${item.id}`,
-        { status: newStatus }
+        { status: newStatus },
       );
 
       setItems((prev) =>
-        prev.map((row) => (row.id === item.id ? { ...row, ...updated } : row))
+        prev.map((row) => (row.id === item.id ? { ...row, ...updated } : row)),
       );
     } catch (err) {
       console.error(err);
@@ -115,11 +98,11 @@ export default function ProjectDashboard({
         `/projects/${projectId}/checklist/${item.id}`,
         {
           justification: draftJustification || null,
-        }
+        },
       );
 
       setItems((prev) =>
-        prev.map((row) => (row.id === item.id ? { ...row, ...updated } : row))
+        prev.map((row) => (row.id === item.id ? { ...row, ...updated } : row)),
       );
       cancelEditJustification();
     } catch (err) {
@@ -141,7 +124,7 @@ export default function ProjectDashboard({
 
     try {
       const data = await apiGet<EvidenceItem[]>(
-        `/evidence?project_id=${projectId}&obligation_id=${item.obligation_id}`
+        `/evidence?project_id=${projectId}&obligation_id=${item.obligation_id}`,
       );
       setEvidenceState((prev) => ({
         ...prev,
@@ -161,7 +144,7 @@ export default function ProjectDashboard({
       open: false,
       items: [],
       obligationId: null,
-      shortLabel: "",
+      shortLabel: null,
       newTitle: "",
       newDescription: "",
     }));
@@ -197,8 +180,8 @@ export default function ProjectDashboard({
                 ...row,
                 evidence_count: (row.evidence_count ?? 0) + 1,
               }
-            : row
-        )
+            : row,
+        ),
       );
     } catch (err) {
       console.error(err);
@@ -227,11 +210,11 @@ export default function ProjectDashboard({
                   ...row,
                   evidence_count: Math.max(
                     0,
-                    (row.evidence_count ?? 0) - 1
+                    (row.evidence_count ?? 0) - 1,
                   ),
                 }
-              : row
-          )
+              : row,
+          ),
         );
       }
     } catch (err) {
@@ -244,7 +227,12 @@ export default function ProjectDashboard({
     <div className="space-y-8">
       {/* Header */}
       <section className="border rounded-lg p-6 shadow-sm bg-white">
-        <h2 className="text-xl font-semibold mb-4">Compliance Summary</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Compliance Summary</h2>
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+            {summary.completion_percent.toFixed(1)}% complete
+          </span>
+        </div>
         <div className="flex gap-6 text-sm">
           <div>🟦 Todo: {summary.by_status.todo}</div>
           <div>🟧 In Progress: {summary.by_status.in_progress}</div>
@@ -282,7 +270,9 @@ export default function ProjectDashboard({
                 <tr key={item.id} className="border-b">
                   {/* Obligation cell */}
                   <td className="p-2 align-top">
-                    <div className="font-medium">{item.short_label}</div>
+                    <div className="font-medium">
+                      {item.short_label ?? "Untitled obligation"}
+                    </div>
                     {item.reference && (
                       <div className="text-xs text-gray-500">
                         {item.reference}
@@ -299,13 +289,19 @@ export default function ProjectDashboard({
                       className="border rounded px-2 py-1 text-xs"
                       value={item.status}
                       onChange={(e) =>
-                        handleStatusChange(item, e.target.value)
+                        handleStatusChange(
+                          item,
+                          e.target.value as ProjectObligationStatus,
+                        )
                       }
                     >
-                      <option value="todo">todo</option>
-                      <option value="in_progress">in progress</option>
-                      <option value="done">done</option>
-                      <option value="not_applicable">not applicable</option>
+                      {(
+                        ["todo", "in_progress", "done", "not_applicable"] as const
+                      ).map((status) => (
+                        <option key={status} value={status}>
+                          {STATUS_LABELS[status]}
+                        </option>
+                      ))}
                     </select>
                   </td>
 
@@ -339,7 +335,9 @@ export default function ProjectDashboard({
                     ) : (
                       <div className="flex flex-col gap-1">
                         <span className="text-xs">
-                          {item.justification ?? "No justification yet"}
+                          {item.justification
+                            ? item.justification
+                            : "No justification yet"}
                         </span>
                         <button
                           className="text-xs text-blue-600 underline w-fit"
@@ -444,8 +442,13 @@ export default function ProjectDashboard({
                         className="border rounded p-2 flex justify-between gap-2"
                       >
                         <div>
-                          <div className="text-sm font-medium">
+                          <div className="text-sm font-medium flex items-center gap-2">
                             {ev.title}
+                            {ev.file_type && (
+                              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600">
+                                {ev.file_type}
+                              </span>
+                            )}
                           </div>
                           {ev.description && (
                             <div className="text-xs text-gray-600 mt-1">
@@ -455,6 +458,16 @@ export default function ProjectDashboard({
                           <div className="text-xs text-gray-400 mt-1">
                             {new Date(ev.uploaded_at).toLocaleString()}
                           </div>
+                          {ev.storage_url && (
+                            <a
+                              href={ev.storage_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 underline mt-1 inline-block"
+                            >
+                              View file
+                            </a>
+                          )}
                         </div>
                         <button
                           className="text-xs text-red-600"
