@@ -148,10 +148,6 @@ export interface Project {
   updated_at?: string;
 }
 
-export function getProjects(): Promise<Project[]> {
-  return apiGet<Project[]>("/projects");
-}
-
 // ---- Project quality / gap analysis types & helpers ----
 
 // Reuse your existing ProjectObligationStatus type from this file.
@@ -194,4 +190,15 @@ export function getProjectQuality(
   projectId: string,
 ): Promise<ProjectQualityDetail> {
   return apiGet<ProjectQualityDetail>(`/projects/${projectId}/quality`);
+}
+
+export interface ProjectListItem {
+  id: string;
+  name: string;
+  created_at: string;
+  risk_category: string | null;
+}
+
+export function getProjects(): Promise<ProjectListItem[]> {
+  return apiGet<ProjectListItem[]>("/projects");
 }
