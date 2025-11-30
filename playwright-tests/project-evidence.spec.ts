@@ -13,28 +13,25 @@ test.describe("Evidence modal", () => {
     await expect(evidenceButton).toBeVisible();
     await evidenceButton.click();
 
-    // Modal should appear
-    await expect(
-      page.getByRole("heading", { name: /Evidence –/ }),
-    ).toBeVisible();
+    // Drawer / modal should appear
+    const drawer = page.getByRole("dialog", { name: /Evidence/ });
+    await expect(drawer).toBeVisible();
 
-    // Add new evidence
+    // Add new evidence with a unique title
     const title = `Playwright evidence ${Date.now()}`;
 
-    await page
+    await drawer
       .getByPlaceholder("Title (e.g. 'Risk management policy v3')")
       .fill(title);
 
-    await page
+    await drawer
       .getByPlaceholder("Description (optional)")
       .fill("Evidence created by Playwright test");
 
-    await page
-      .getByRole("button", { name: /Save evidence/i })
-      .click();
+    await drawer.getByRole("button", { name: /Save evidence/i }).click();
 
-    // The new evidence row: this div class matches your ProjectDashboard.tsx
-    const evidenceRow = page
+    // The new evidence row (scoped to the drawer)
+    const evidenceRow = drawer
       .locator("div.border.rounded.p-2")
       .filter({ hasText: title })
       .first();
@@ -43,11 +40,13 @@ test.describe("Evidence modal", () => {
 
     // Handle confirm("Delete this evidence item?") by accepting it
     page.once("dialog", (dialog) => dialog.accept());
-    await evidenceRow
-      .getByRole("button", { name: "Delete" })
-      .click();
+    await evidenceRow.getByRole("button", { name: "Delete" }).click();
 
-    // After delete, the row should be gone or hidden
-    await expect(evidenceRow).not.toBeVisible();
+    // After delete, there should be **no** rows with that title any more
+    const evidenceRowAfterDelete = drawer
+      .locator("div.border.rounded.p-2")
+      .filter({ hasText: title });
+
+    await expect(evidenceRowAfterDelete).toHaveCount(0);
   });
 });

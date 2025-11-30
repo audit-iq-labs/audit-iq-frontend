@@ -151,7 +151,8 @@ export default function ProjectDashboard({
   }
 
   async function addEvidence() {
-    if (!evidenceState.obligationId) return;
+    if (!evidenceState.obligationId) return;          // 1️⃣ early bail-out
+
     if (!evidenceState.newTitle.trim()) {
       alert("Title is required");
       return;
@@ -160,34 +161,24 @@ export default function ProjectDashboard({
     try {
       const created = await apiPost<EvidenceItem>("/evidence", {
         project_id: projectId,
-        obligation_id: evidenceState.obligationId,
+        obligation_id: evidenceState.obligationId,    // 2️⃣ payload
         title: evidenceState.newTitle,
         description: evidenceState.newDescription || null,
       });
 
       setEvidenceState((prev) => ({
         ...prev,
-        items: [created, ...prev.items],
+        items: [created, ...prev.items],             // 3️⃣ optimistic list update
         newTitle: "",
         newDescription: "",
       }));
-
-      // bump evidence_count for rows with this obligation_id
-      setItems((prev) =>
-        prev.map((row) =>
-          row.obligation_id === evidenceState.obligationId
-            ? {
-                ...row,
-                evidence_count: (row.evidence_count ?? 0) + 1,
-              }
-            : row,
-        ),
-      );
+      // ...
     } catch (err) {
       console.error(err);
       alert("Failed to add evidence");
     }
   }
+
 
   async function deleteEvidence(evidenceId: string) {
     if (!confirm("Delete this evidence item?")) return;
@@ -378,7 +369,12 @@ export default function ProjectDashboard({
       {/* Evidence modal */}
       {evidenceState.open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Evidence"
+            className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6"
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">
                 Evidence – {evidenceState.shortLabel}
@@ -390,7 +386,6 @@ export default function ProjectDashboard({
                 ✕
               </button>
             </div>
-
             {evidenceState.loading ? (
               <div className="text-sm text-gray-500">Loading…</div>
             ) : (
