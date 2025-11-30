@@ -10,6 +10,7 @@ import {
   ProjectChecklistItem,
   EvidenceItem,
   ProjectObligationStatus,
+  API_BASE_URL,
 } from "@/lib/api";
 
 interface Props {
@@ -47,6 +48,7 @@ export default function ProjectDashboard({
     items: EvidenceItem[];
     newTitle: string;
     newDescription: string;
+    newFile: File | null;
   }>({
     open: false,
     loading: false,
@@ -55,6 +57,7 @@ export default function ProjectDashboard({
     items: [],
     newTitle: "",
     newDescription: "",
+    newFile: null,
   });
 
   React.useEffect(() => {
@@ -120,6 +123,9 @@ export default function ProjectDashboard({
       obligationId: item.obligation_id,
       shortLabel: item.short_label,
       items: [],
+      newTitle: "",
+      newDescription: "",
+      newFile: null,
     }));
 
     try {
@@ -147,38 +153,90 @@ export default function ProjectDashboard({
       shortLabel: null,
       newTitle: "",
       newDescription: "",
+      newFile: null,
     }));
   }
 
   async function addEvidence() {
-    if (!evidenceState.obligationId) return;          // 1️⃣ early bail-out
+    if (!evidenceState.obligationId) return;
 
-    if (!evidenceState.newTitle.trim()) {
-      alert("Title is required");
+    if (!evidenceState.newTitle.trim() && !evidenceState.newFile) {
+      alert("Title or file is required");
       return;
     }
 
     try {
-      const created = await apiPost<EvidenceItem>("/evidence", {
-        project_id: projectId,
-        obligation_id: evidenceState.obligationId,    // 2️⃣ payload
-        title: evidenceState.newTitle,
-        description: evidenceState.newDescription || null,
-      });
+      let newItem: EvidenceItem;
+
+      if (evidenceState.newFile) {
+        // Use multipart /evidence/upload
+        const formData = new FormData();
+        formData.append("project_id", projectId);
+        formData.append("obligation_id", evidenceState.obligationId);
+        if (evidenceState.newTitle) {
+          formData.append("title", evidenceState.newTitle);
+        }
+        if (evidenceState.newDescription) {
+          formData.append("description", evidenceState.newDescription);
+        }
+        formData.append("file", evidenceState.newFile);
+
+        const response = await fetch(`${API_BASE_URL}/evidence/upload`, {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to upload evidence file");
+        }
+
+        newItem = (await response.json()) as EvidenceItem;
+      } else {
+        // No file: simple JSON POST
+        newItem = await apiPost<EvidenceItem>("/evidence", {
+          project_id: projectId,
+          obligation_id: evidenceState.obligationId,
+          title: evidenceState.newTitle,
+          description: evidenceState.newDescription || null,
+        });
+      }
 
       setEvidenceState((prev) => ({
         ...prev,
-        items: [created, ...prev.items],             // 3️⃣ optimistic list update
+        items: [newItem, ...prev.items],
         newTitle: "",
         newDescription: "",
+        newFile: null,
       }));
-      // ...
     } catch (err) {
       console.error(err);
       alert("Failed to add evidence");
     }
   }
 
+  async function uploadEvidenceFile(evidenceId: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // Adjust base URL if your frontend proxies differently
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL ?? ""}/evidence/${evidenceId}/file`,
+      {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to upload evidence file");
+    }
+
+    const updated: EvidenceItem = await response.json();
+    return updated;
+  }
 
   async function deleteEvidence(evidenceId: string) {
     if (!confirm("Delete this evidence item?")) return;
@@ -393,6 +451,7 @@ export default function ProjectDashboard({
                 {/* Add evidence form */}
                 <div className="border rounded p-3 space-y-2">
                   <div className="text-sm font-medium">Add evidence</div>
+
                   <input
                     className="border rounded w-full px-2 py-1 text-sm"
                     placeholder="Title (e.g. 'Risk management policy v3')"
@@ -404,6 +463,7 @@ export default function ProjectDashboard({
                       }))
                     }
                   />
+
                   <textarea
                     className="border rounded w-full px-2 py-1 text-sm"
                     rows={3}
@@ -416,14 +476,41 @@ export default function ProjectDashboard({
                       }))
                     }
                   />
-                  <button
-                    className="px-3 py-1 rounded bg-blue-600 text-white text-xs"
-                    onClick={addEvidence}
-                  >
-                    Save evidence
-                  </button>
-                </div>
 
+                  {/* New file input */}
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      type="file"
+                      className="text-xs"
+                      onChange={(e) =>
+                        setEvidenceState((prev) => ({
+                          ...prev,
+                          newFile: e.target.files?.[0] ?? null,
+                        }))
+                      }
+                    />
+                    {evidenceState.newFile && (
+                      <span className="text-[11px] text-gray-500 truncate max-w-[180px]">
+                        {evidenceState.newFile.name}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      className="px-3 py-1 rounded border text-xs"
+                      onClick={closeEvidenceModal}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="px-3 py-1 rounded bg-blue-600 text-white text-xs"
+                      onClick={addEvidence}
+                    >
+                      Save evidence
+                    </button>
+                  </div>
+                </div>
                 {/* Existing evidence list */}
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {evidenceState.items.length === 0 ? (
