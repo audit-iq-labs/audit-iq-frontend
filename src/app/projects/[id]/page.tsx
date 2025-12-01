@@ -6,6 +6,7 @@ import {
   getProjectChecklistSummary,
   getProjectChecklist,
   getProjectQuality,
+  importAiActTitleIV,
 } from "@/lib/api";
 
 interface RouteParams {
@@ -18,6 +19,12 @@ export default async function ProjectPage({
   params: Promise<RouteParams>;
 }) {
   const { id: projectId } = await params;
+
+  async function handleImportAiActTitleIV() {
+    "use server";
+    await importAiActTitleIV(projectId);
+    // Option: revalidate path or refetch data depending on your setup
+  }
 
   // Fetch everything in parallel
   const [summary, checklistSummary, checklist, quality] = await Promise.all([
@@ -39,8 +46,9 @@ export default async function ProjectPage({
       {/* Checklist + status table */}
       <ProjectDashboard
         projectId={projectId}
-        summary={checklistSummary}   // ✅ now a proper ProjectChecklistSummary
+        summary={checklistSummary}
         checklist={checklist}
+        onImportAiActTitleIV={handleImportAiActTitleIV}
       />
     </div>
   );

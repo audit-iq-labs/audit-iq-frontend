@@ -256,3 +256,7 @@ export function getProjectActivity(
     `/projects/${projectId}/activity?limit=${limit}`,
   );
 }
+
+export async function importAiActTitleIV(projectId: string): Promise<void> {
+  await apiPost(`/projects/${projectId}/ai-act/title-iv/ingest`, {});
+}
