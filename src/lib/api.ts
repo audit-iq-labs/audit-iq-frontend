@@ -104,10 +104,36 @@ export interface ChecklistWithEvidence {
 
 // ---- Project-specific API helpers ----
 
+export interface ProjectSummary {
+  project: {
+    id: string;
+    name: string;
+    risk_category?: string | null;
+    ai_use_case?: string | null;
+    jurisdiction?: string[] | null;
+  };
+  checklist: ProjectChecklistSummary;
+  evidence?: {
+    project_id: string;
+    total_evidence_items: number;
+    obligations_with_evidence: number;
+    obligations_without_evidence: number;
+    avg_evidence_per_obligation: number;
+    missing_evidence_for_done: number;
+    evidence_coverage_percent: number;
+  };
+  deadlines?: {
+    next_due_date: string | null;
+    overdue_count: number;
+  };
+  // quality summary is already available via getProjectQuality,
+  // but you can mirror it here later if needed.
+}
+
 export function getProjectSummary(
   projectId: string,
-): Promise<ProjectChecklistSummary> {
-  return apiGet<ProjectChecklistSummary>(`/projects/${projectId}/summary`);
+): Promise<ProjectSummary> {
+  return apiGet<ProjectSummary>(`/projects/${projectId}/summary`);
 }
 
 export function getProjectChecklist(
@@ -201,4 +227,24 @@ export interface ProjectListItem {
 
 export function getProjects(): Promise<ProjectListItem[]> {
   return apiGet<ProjectListItem[]>("/projects");
+}
+
+export interface ProjectActivityItem {
+  id: string;
+  project_id: string;
+  obligation_id: string | null;
+  evidence_id: string | null;
+  actor: string | null;
+  action: string;
+  details: Record<string, any> | null;
+  created_at: string; // ISO
+}
+
+export function getProjectActivity(
+  projectId: string,
+  limit = 50,
+): Promise<ProjectActivityItem[]> {
+  return apiGet<ProjectActivityItem[]>(
+    `/projects/${projectId}/activity?limit=${limit}`,
+  );
 }

@@ -1,14 +1,15 @@
 // src/components/ProjectOverviewPanel.tsx
 
 import React from "react";
-import type { ProjectQualityDetail } from "@/lib/api";
+import type { ProjectSummary, ProjectQualityDetail } from "@/lib/api";
+import ProjectActivityTimeline from "./ProjectActivityTimeline";
 
 // We deliberately type `summary` as `any` so we don't depend on
 // the exact shape your existing getProjectSummary already returns.
 // It keeps this panel additive and avoids touching existing types.
 interface Props {
   projectId: string;
-  summary: any;
+  summary: ProjectSummary;
   quality: ProjectQualityDetail;
 }
 
@@ -21,9 +22,9 @@ export default function ProjectOverviewPanel({
   summary,
   quality,
 }: Props) {
-  const project = summary?.project ?? {};
-  const checklist = summary?.checklist ?? {};
-  const deadlines = summary?.deadlines ?? {};
+  const project = summary.project;
+  const checklist = summary.checklist;
+  const deadlines = summary.deadlines;
   const q = quality.summary;
 
   return (
@@ -73,7 +74,7 @@ export default function ProjectOverviewPanel({
           label="Overdue obligations"
           value={(q.overdue_count ?? 0).toString()}
           helper={
-            deadlines.next_due_date
+            deadlines?.next_due_date
               ? `Next due: ${deadlines.next_due_date}`
               : "No upcoming due dates"
           }
@@ -84,6 +85,7 @@ export default function ProjectOverviewPanel({
           helper={`${q.high_risk_gaps ?? 0} high-risk gaps`}
         />
       </div>
+      <ProjectActivityTimeline projectId={projectId} />
     </div>
   );
 }
