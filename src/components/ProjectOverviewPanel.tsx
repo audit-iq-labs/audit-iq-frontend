@@ -44,7 +44,7 @@ export default function ProjectOverviewPanel({
       <div className="flex flex-col justify-between gap-2 md:flex-row md:items-center">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">
-            {project?.name ?? "Project"}
+            Project: {project?.name ?? "Untitled project"}
           </h1>
           {project?.ai_use_case && (
             <p className="text-sm text-gray-600">

@@ -1,46 +1,45 @@
-import {
-  getProjectChecklist,
-  getProjectSummary,
-  getProjectQuality,
-  ProjectChecklistItem,
-  ProjectChecklistSummary,
-} from "@/lib/api";
-import ProjectDashboard from "@/components/ProjectDashboard";
+// src/app/projects/[id]/page.tsx
 import ProjectOverviewPanel from "@/components/ProjectOverviewPanel";
+import ProjectDashboard from "@/components/ProjectDashboard";
+import {
+  getProjectSummary,
+  getProjectChecklistSummary,
+  getProjectChecklist,
+  getProjectQuality,
+} from "@/lib/api";
 
-// Next 13 passes params as a Promise in server components
 interface RouteParams {
   id: string;
 }
 
-interface Props {
+export default async function ProjectPage({
+  params,
+}: {
   params: Promise<RouteParams>;
-}
-
-export default async function ProjectPage({ params }: Props) {
-  const { id } = await params;
-  const projectId = id;
+}) {
+  const { id: projectId } = await params;
 
   // Fetch everything in parallel
-  const [summary, checklist, quality] = await Promise.all([
-    getProjectSummary(projectId),
-    getProjectChecklist(projectId),
-    getProjectQuality(projectId),
+  const [summary, checklistSummary, checklist, quality] = await Promise.all([
+    getProjectSummary(projectId),         // rich ProjectSummary
+    getProjectChecklistSummary(projectId),// ProjectChecklistSummary
+    getProjectChecklist(projectId),       // detailed items
+    getProjectQuality(projectId),         // quality/gaps
   ]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      {/* New high-level overview, read-only */}
+    <div className="space-y-6">
+      {/* Top overview header + KPI cards */}
       <ProjectOverviewPanel
         projectId={projectId}
         summary={summary}
         quality={quality}
       />
 
-      {/* Existing interactive checklist & evidence dashboard */}
+      {/* Checklist + status table */}
       <ProjectDashboard
         projectId={projectId}
-        summary={summary}
+        summary={checklistSummary}   // ✅ now a proper ProjectChecklistSummary
         checklist={checklist}
       />
     </div>

@@ -17,7 +17,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function apiPut<T>(path: string, body: any): Promise<T> {
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -31,7 +31,7 @@ export async function apiPut<T>(path: string, body: any): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function apiPost<T>(path: string, body: any): Promise<T> {
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -69,6 +69,14 @@ export interface ProjectChecklistSummary {
   total_items: number;
   by_status: Record<ProjectObligationStatus, number>;
   completion_percent: number;
+}
+
+export function getProjectChecklistSummary(
+  projectId: string,
+): Promise<ProjectChecklistSummary> {
+  return apiGet<ProjectChecklistSummary>(
+    `/projects/${projectId}/checklist/summary`,
+  );
 }
 
 export interface ProjectChecklistItem {
@@ -236,7 +244,7 @@ export interface ProjectActivityItem {
   evidence_id: string | null;
   actor: string | null;
   action: string;
-  details: Record<string, any> | null;
+  details: Record<string, unknown> | null;
   created_at: string; // ISO
 }
 

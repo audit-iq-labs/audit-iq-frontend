@@ -17,7 +17,12 @@ interface Props {
   projectId: string;
   summary: ProjectChecklistSummary;
   checklist: ProjectChecklistItem[];
+
+  // new (optional for now)
+  onImportAiActTitleIV?: () => Promise<void>;
+  isImportingAiActTitleIV?: boolean;
 }
+
 
 // Local alias so the code reads nicely
 type ChecklistItem = ProjectChecklistItem;
@@ -33,6 +38,8 @@ export default function ProjectDashboard({
   projectId,
   summary,
   checklist,
+  onImportAiActTitleIV,
+  isImportingAiActTitleIV,
 }: Props) {
   const [items, setItems] = React.useState<ChecklistItem[]>(checklist);
   const [editingJustificationId, setEditingJustificationId] =
@@ -216,28 +223,6 @@ export default function ProjectDashboard({
     }
   }
 
-  async function uploadEvidenceFile(evidenceId: string, file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    // Adjust base URL if your frontend proxies differently
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL ?? ""}/evidence/${evidenceId}/file`,
-      {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to upload evidence file");
-    }
-
-    const updated: EvidenceItem = await response.json();
-    return updated;
-  }
-
   async function deleteEvidence(evidenceId: string) {
     if (!confirm("Delete this evidence item?")) return;
 
@@ -409,13 +394,31 @@ export default function ProjectDashboard({
                   </td>
                 </tr>
               ))}
-              {items.length === 0 && (
+              {checklist.length === 0 && (
                 <tr>
                   <td
                     colSpan={4}
-                    className="p-4 text-center text-gray-500 text-sm"
+                    className="px-6 py-10 text-center text-sm text-gray-500 border-t"
                   >
-                    No checklist items yet.
+                    <div className="flex flex-col items-center gap-3">
+                      <p className="max-w-md">
+                        You haven’t added any obligations yet. Start by importing the{" "}
+                        <span className="font-semibold">AI Act – Title IV</span> checklist.
+                      </p>
+
+                      {onImportAiActTitleIV && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await onImportAiActTitleIV();
+                          }}
+                          className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                          disabled={isImportingAiActTitleIV}
+                        >
+                          {isImportingAiActTitleIV ? "Importing…" : "Use AI Act – Title IV"}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}
