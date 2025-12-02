@@ -260,3 +260,22 @@ export function getProjectActivity(
 export async function importAiActTitleIV(projectId: string): Promise<void> {
   await apiPost(`/projects/${projectId}/ai-act/title-iv/ingest`, {});
 }
+
+// ---- Project create types & helpers ----
+
+export interface CreateProjectInput {
+  name: string;
+  jurisdiction?: string | null;
+  regulation?: string | null;
+  risk_category?: string | null;
+}
+
+/**
+ * Create a new project.
+ * Backend: POST /projects
+ */
+export function createProject(
+  payload: CreateProjectInput,
+): Promise<Project> {
+  return apiPost<Project>("/projects", payload);
+}

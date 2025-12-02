@@ -1,3 +1,4 @@
+// src/app/projects/page.tsx
 import Link from "next/link";
 import { getProjects, Project } from "@/lib/api";
 
@@ -16,19 +17,17 @@ export default async function ProjectsIndexPage() {
     <main className="max-w-5xl mx-auto py-8 space-y-8">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Projects</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Projects</h1>
           <p className="text-sm text-gray-600">
             Select a project to view its AI Act compliance checklist.
           </p>
         </div>
-        {/* placeholder for "New project" later */}
-        <button
-          type="button"
-          className="px-3 py-1.5 rounded bg-gray-900 text-white text-sm opacity-60 cursor-not-allowed"
-          title="Coming soon"
+        <Link
+          href="/projects/new"
+          className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
-          + New project
-        </button>
+          New project
+        </Link>
       </header>
 
       <section className="border rounded-lg bg-white shadow-sm">
