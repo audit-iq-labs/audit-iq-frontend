@@ -265,9 +265,10 @@ export async function importAiActTitleIV(projectId: string): Promise<void> {
 
 export interface CreateProjectInput {
   name: string;
-  jurisdiction?: string | null;
+  jurisdiction?: string[] | null;   // was string | null
   regulation?: string | null;
   risk_category?: string | null;
+  organization_id?: string;         // ready for future when you wire orgs
 }
 
 /**

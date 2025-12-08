@@ -20,7 +20,7 @@ interface Props {
 
   // new (optional for now)
   onImportAiActTitleIV?: () => Promise<void>;
-  isImportingAiActTitleIV?: boolean;
+  // isImportingAiActTitleIV?: boolean;
 }
 
 
@@ -39,13 +39,14 @@ export default function ProjectDashboard({
   summary,
   checklist,
   onImportAiActTitleIV,
-  isImportingAiActTitleIV,
+  // isImportingAiActTitleIV,
 }: Props) {
   const [items, setItems] = React.useState<ChecklistItem[]>(checklist);
   const [editingJustificationId, setEditingJustificationId] =
     React.useState<string | null>(null);
   const [draftJustification, setDraftJustification] =
     React.useState<string>("");
+  const [isImporting, startTransition] = React.useTransition();
 
   const [evidenceState, setEvidenceState] = React.useState<{
     open: boolean;
@@ -407,13 +408,7 @@ export default function ProjectDashboard({
                   <td className="p-2 align-top">
                     {editingJustificationId === item.id ? (
                       <div className="flex flex-col gap-2">
-                        <textarea
-                          className="border rounded w-full px-2 py-1 text-xs"
-                          rows={3}
-                          placeholder="Explain why this is done, not applicable, or delayed…"
-                          value={draftJustification}
-                          onChange={(e) => setDraftJustification(e.target.value)}
-                        />
+
                         <div className="flex gap-2">
                           <button
                             className="text-xs px-2 py-1 rounded bg-blue-600 text-white"
@@ -468,17 +463,19 @@ export default function ProjectDashboard({
                       </p>
 
                       {onImportAiActTitleIV && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await onImportAiActTitleIV();
-                          }}
-                          className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-                          disabled={isImportingAiActTitleIV}
-                        >
-                          {isImportingAiActTitleIV ? "Importing…" : "Use AI Act – Title IV"}
-                        </button>
-                      )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    startTransition(async () => {
+                                      await onImportAiActTitleIV();       // ✅ calls server action
+                                    });
+                                  }}
+                                  className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                                  disabled={isImporting}
+                                >
+                                  {isImporting ? "Importing…" : "Use AI Act – Title IV"}
+                                </button>
+                              )}
                     </div>
                   </td>
                 </tr>

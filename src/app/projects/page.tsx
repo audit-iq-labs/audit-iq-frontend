@@ -13,6 +13,8 @@ export default async function ProjectsIndexPage() {
     console.error("Failed to load projects", err);
   }
 
+  const hasProjects = projects.length > 0;
+
   return (
     <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       <header className="flex items-center justify-between gap-4">
@@ -48,7 +50,7 @@ export default async function ProjectsIndexPage() {
             </thead>
 
             {/* Single tbody – content differs, structure does not */}
-            <tbody>
+            <tbody suppressHydrationWarning>
               {projects.length === 0 ? (
                 <tr>
                   <td

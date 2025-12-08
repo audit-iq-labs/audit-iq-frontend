@@ -29,9 +29,9 @@ export default function NewProjectPage() {
     try {
       const project = await createProject({
         name: name.trim(),
-        jurisdiction,
+        jurisdiction: jurisdiction ? [jurisdiction] : null,
         regulation,
-        risk_category: riskCategory,
+        risk_category: riskCategory || null,
       });
 
       // On success, go straight to the detail page
