@@ -280,3 +280,72 @@ export function createProject(
 ): Promise<Project> {
   return apiPost<Project>("/projects", payload);
 }
+
+export async function uploadAnalysisDocument(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/api/documents/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to upload document");
+  }
+
+  return res.json() as Promise<{
+    id: string;
+    title: string;
+    filename: string;
+    content_type: string;
+    size_bytes: number | null;
+    created_at: string;
+  }>;
+}
+
+export async function analyzeDocument(documentId: string) {
+  const res = await fetch(
+    `${API_BASE_URL}/api/documents/${documentId}/analyze`,
+    {
+      method: "POST",
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to analyze document");
+  }
+
+  return res.json() as Promise<{
+    document: any;
+    extracted_obligations: {
+      id: string;
+      obligation_text: string;
+      obligation_type?: string | null;
+      ai_act_reference?: string | null;
+    }[];
+    gaps: {
+      id: string;
+      reg_obligation_id: string;
+      severity: string;
+      gap_reason: string;
+      reg_obligation_text: string;
+    }[];
+  }>;
+}
+
+export async function getDocumentGapSummary(documentId: string) {
+  const res = await fetch(
+    `${API_BASE_URL}/api/documents/${documentId}/gaps/summary`
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load gap summary");
+  }
+
+  return res.json() as Promise<{
+    document_id: string;
+    total_gaps: number;
+    by_severity: Record<string, number>;
+  }>;
+}
