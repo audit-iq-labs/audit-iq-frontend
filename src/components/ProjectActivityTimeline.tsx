@@ -20,6 +20,14 @@ function describeAction(item: ProjectActivityItem): string {
       return `Evidence file uploaded: ${item.details?.title ?? ""}`;
     case "evidence_deleted":
       return `Evidence deleted: ${item.details?.title ?? ""}`;
+    case "status_changed":
+      return `Status changed to ${item.details?.new_status ?? ""}`;
+    case "justification_updated":
+      return "Justification updated";
+    case "due_date_updated":
+      return `Due date updated to ${item.details?.new_due_date ?? ""}`;
+    case "checklist_imported":
+      return "Checklist imported from AI Act – Title IV";
     default:
       return item.action.replace(/_/g, " ");
   }
@@ -90,6 +98,9 @@ export default function ProjectActivityTimeline({ projectId }: Props) {
             <span className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full bg-gray-400" />
             <div className="text-xs text-gray-500">
               {formatTime(item.created_at)}
+              {item.actor && (
+                <> · <span className="font-medium text-gray-600">{item.actor}</span></>
+              )}
             </div>
             <div className="text-sm">
               {describeAction(item)}

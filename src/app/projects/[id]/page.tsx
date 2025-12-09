@@ -8,6 +8,8 @@ import {
   getProjectQuality,
   importAiActTitleIV,
 } from "@/lib/api";
+import { revalidatePath } from "next/cache";
+import { notFound } from "next/navigation";
 
 interface RouteParams {
   id: string;
@@ -16,34 +18,40 @@ interface RouteParams {
 export default async function ProjectPage({
   params,
 }: {
-  params: Promise<RouteParams>;
+  params: Promise<RouteParams>; // ✅ back to Promise (works with your setup)
 }) {
+  // Next will pass { id: "<uuid>" } here; awaiting the Promise is harmless.
   const { id: projectId } = await params;
 
-  async function handleImportAiActTitleIV() {
-    "use server";
-    await importAiActTitleIV(projectId);
-    // Option: revalidate path or refetch data depending on your setup
+  if (!projectId) {
+    // Extra safety: never call the backend with "undefined" again
+    notFound();
   }
 
-  // Fetch everything in parallel
+  // ✅ Server action passed down into the client component
+  async function handleImportAiActTitleIV() {
+    "use server";
+
+    await importAiActTitleIV(projectId);
+    revalidatePath(`/projects/${projectId}`);
+  }
+
+  // Fetch everything in parallel for this projectId
   const [summary, checklistSummary, checklist, quality] = await Promise.all([
-    getProjectSummary(projectId),         // rich ProjectSummary
-    getProjectChecklistSummary(projectId),// ProjectChecklistSummary
-    getProjectChecklist(projectId),       // detailed items
-    getProjectQuality(projectId),         // quality/gaps
+    getProjectSummary(projectId),
+    getProjectChecklistSummary(projectId),
+    getProjectChecklist(projectId),
+    getProjectQuality(projectId),
   ]);
 
   return (
     <div className="space-y-6">
-      {/* Top overview header + KPI cards */}
       <ProjectOverviewPanel
         projectId={projectId}
         summary={summary}
         quality={quality}
       />
 
-      {/* Checklist + status table */}
       <ProjectDashboard
         projectId={projectId}
         summary={checklistSummary}
