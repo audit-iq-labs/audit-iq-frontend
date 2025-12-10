@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
 interface RouteParams {
   id: string;
@@ -44,7 +45,7 @@ export default async function ProjectPage({
     getProjectQuality(projectId),
   ]);
 
-  return (
+    return (
     <div className="space-y-6">
       <ProjectOverviewPanel
         projectId={projectId}
@@ -52,12 +53,24 @@ export default async function ProjectPage({
         quality={quality}
       />
 
-      <ProjectDashboard
-        projectId={projectId}
-        summary={checklistSummary}
-        checklist={checklist}
-        onImportAiActTitleIV={handleImportAiActTitleIV}
-      />
+      <div className="space-y-3">
+        {/* Top-right CTA to run single-document analysis */}
+        <div className="flex justify-end">
+          <Link
+            href={`/analyze?projectId=${projectId}`}
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-gray-50"
+          >
+            Run single-document check
+          </Link>
+        </div>
+
+        <ProjectDashboard
+          projectId={projectId}
+          summary={checklistSummary}
+          checklist={checklist}
+          onImportAiActTitleIV={handleImportAiActTitleIV}
+        />
+      </div>
     </div>
   );
 }
