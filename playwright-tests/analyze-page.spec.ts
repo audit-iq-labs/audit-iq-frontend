@@ -1,29 +1,29 @@
 import { test, expect } from "@playwright/test";
+import path from "path";
 
 test.describe("Analyze page", () => {
   test("can upload a document and see gap summary", async ({ page }) => {
     await page.goto("/analyze");
 
     // Upload a small dummy PDF from fixtures
-    const fileInput = page.getByLabel(/Upload a document/i);
-    await fileInput.setInputFiles("fixtures/test-document.pdf");
+    const fileInput = page.locator('input[type="file"]');
+
+    const filePath = path.join(__dirname, "fixtures", "test-document.pdf");
+    await fileInput.setInputFiles(filePath);
 
     // Click Analyze
     await page.getByRole("button", { name: /Upload & analyze/i }).click();
 
     // Wait for summary cards to appear
-    await expect(page.getByText(/Detected obligations/i)).toBeVisible();
-    await expect(page.getByText(/Total obligations in regulation/i)).toBeVisible();
-    await expect(page.getByText(/Gaps identified/i)).toBeVisible();
+    await expect(page.getByText(/Total gaps/i)).toBeVisible();
+    await expect(page.getByText(/high gaps/i)).toBeVisible();
 
     // And the table
-    const table = page.getByRole("table", { name: /Gap details/i });
+    const table = page.getByRole("table", { name: /Gaps vs EU AI Act Title IV/i });
     await expect(table).toBeVisible();
 
-    // Optional: check at least one row rendered
+    // Optional: check at least one data row rendered (header + at least one row)
     const rows = table.getByRole("row");
-
-    // row(0) is usually the header, so ensure there's at least one more row
     await expect(rows.nth(1)).toBeVisible();
   });
 });

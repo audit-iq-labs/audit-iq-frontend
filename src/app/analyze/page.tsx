@@ -6,11 +6,15 @@ import {
   analyzeDocument,
   getDocumentGapSummary,
 } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
 
 type AnalysisResult = Awaited<ReturnType<typeof analyzeDocument>>;
 type GapSummary = Awaited<ReturnType<typeof getDocumentGapSummary>>;
 
 export default function AnalyzePage() {
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId");
+
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -28,8 +32,12 @@ export default function AnalyzePage() {
       return;
     }
 
+    // Avoid double-submits while a request is in flight
+    if (isUploading || isAnalyzing) return;
+
     try {
       setIsUploading(true);
+
       const uploaded = await uploadAnalysisDocument(file);
 
       setIsUploading(false);
@@ -51,29 +59,41 @@ export default function AnalyzePage() {
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
-      <h1 className="text-2xl font-semibold mb-4">
+      <h1 className="mb-4 text-2xl font-semibold">
         Single Document Compliance Check
       </h1>
-      <p className="text-sm text-gray-600 mb-6">
+
+      <p className="mb-2 text-sm text-gray-600">
         Upload an internal policy, DPIA or procedure and see how it compares
         against EU AI Act Title IV obligations.
       </p>
 
+      {projectId && (
+        <p className="mb-6 text-sm text-gray-500">
+          Running this check for project{" "}
+          <span className="font-mono text-xs font-medium">{projectId}</span>. In
+          a later version this analysis can be attached directly to the project.
+        </p>
+      )}
+
       <form
         onSubmit={handleSubmit}
-        className="mb-8 rounded-lg border border-gray-200 p-4 flex flex-col gap-4"
+        className="mb-8 flex flex-col gap-4 rounded-lg border border-gray-200 p-4"
       >
         <input
           type="file"
-          accept=".pdf,.doc,.docx,.txt"
+          // Backend currently only accepts PDFs, so keep this in sync.
+          accept=".pdf"
           onChange={(e) => {
             const f = e.target.files?.[0] ?? null;
             setFile(f);
+            setAnalysis(null);
+            setSummary(null);
           }}
         />
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+          <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
             {error}
           </p>
         )}
@@ -118,7 +138,7 @@ export default function AnalyzePage() {
       {analysis && (
         <div className="space-y-8">
           <section>
-            <h2 className="text-lg font-semibold mb-2">
+            <h2 className="mb-2 text-lg font-semibold">
               Obligations found in your document
             </h2>
             {analysis.extracted_obligations.length === 0 ? (
@@ -145,7 +165,9 @@ export default function AnalyzePage() {
                   <tbody>
                     {analysis.extracted_obligations.map((o) => (
                       <tr key={o.id} className="border-t">
-                        <td className="px-3 py-2 align-top">{o.obligation_text}</td>
+                        <td className="px-3 py-2 align-top">
+                          {o.obligation_text}
+                        </td>
                         <td className="px-3 py-2 align-top">
                           {o.obligation_type ?? "-"}
                         </td>
@@ -161,7 +183,7 @@ export default function AnalyzePage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold mb-2">
+            <h2 className="mb-2 text-lg font-semibold">
               Gaps vs EU AI Act Title IV
             </h2>
             {analysis.gaps.length === 0 ? (
