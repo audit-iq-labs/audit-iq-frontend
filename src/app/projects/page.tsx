@@ -5,7 +5,7 @@ import { getProjects, ProjectListItem } from "@/lib/api";
 export const dynamic = "force-dynamic"; // keep list fresh while we iterate
 
 export default async function ProjectsIndexPage() {
-  let projects: ProjectListItem[] = [];
+  let projects: ProjectListItem[] | null = null;
 
   try {
     projects = await getProjects();
@@ -13,7 +13,7 @@ export default async function ProjectsIndexPage() {
     console.error("Failed to load projects", err);
   }
 
-  const hasProjects = projects.length > 0;
+  const isEmpty = projects && projects.length === 0;
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -49,9 +49,21 @@ export default async function ProjectsIndexPage() {
               </tr>
             </thead>
 
-            {/* Single tbody – content differs, structure does not */}
-            <tbody suppressHydrationWarning>
-              {projects.length === 0 ? (
+            {/* Hydration-safe tbody (same structure on server and client) */}
+            <tbody>
+              {/* SERVER + CLIENT ALWAYS RENDER ONE ROW FIRST */}
+              {projects === null ? (
+                // Loading state (SSR + CSR identical)
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-6 text-sm text-gray-500 text-center"
+                  >
+                    Loading projects…
+                  </td>
+                </tr>
+              ) : isEmpty ? (
+                // Empty state
                 <tr>
                   <td
                     colSpan={4}
@@ -62,6 +74,7 @@ export default async function ProjectsIndexPage() {
                   </td>
                 </tr>
               ) : (
+                // Actual project rows
                 projects.map((p) => (
                   <tr
                     key={p.id}
@@ -72,7 +85,7 @@ export default async function ProjectsIndexPage() {
                     </td>
 
                     <td className="px-4 py-3 align-top">
-                      {/* Avoid locale/timezone differences during hydration */}
+                      {/* Stable value to avoid timezone mismatches */}
                       {p.created_at?.slice(0, 10) ?? ""}
                     </td>
 

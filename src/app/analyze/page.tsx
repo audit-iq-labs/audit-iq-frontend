@@ -143,8 +143,8 @@ export default function AnalyzePage() {
             </h2>
             {analysis.extracted_obligations.length === 0 ? (
               <p className="text-sm text-gray-500">
-                No obligations extracted (this is expected with the stubbed AI
-                engine).
+                No obligations were identified in this document.
+                This may happen if the content does not contain AI Act Title IV–relevant obligations.
               </p>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-gray-200">
