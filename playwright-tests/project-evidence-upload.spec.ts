@@ -8,26 +8,20 @@ const FIXTURE_PDF = path.join(__dirname, "fixtures", "dummy.pdf");
 test("can upload evidence file and see View file link", async ({ page }) => {
   await page.goto(`/projects/${TEST_PROJECT_ID}`);
 
-  // Open first Evidence modal
-  const evidenceButton = page
-    .getByRole("button", { name: /^Evidence/ })
+  // Open first Evidence modal (Evidence column uses links, not buttons)
+  const evidenceLink = page
+    .getByRole("link", { name: /^Evidence/ })
     .first();
-  await evidenceButton.click();
+  await evidenceLink.click();
 
   const drawer = page.getByRole("dialog", { name: /Evidence/ });
   await expect(drawer).toBeVisible();
 
-  const title = `Upload evidence ${Date.now()}`;
-  await drawer
-    .getByPlaceholder("Title (e.g. 'Risk management policy v3')")
-    .fill(title);
-  await drawer
-    .getByPlaceholder("Description (optional)")
-    .fill("Evidence file upload test");
-
   // Attach file
   await drawer.locator('input[type="file"]').setInputFiles(FIXTURE_PDF);
 
+  const title = `Playwright evidence ${Date.now()}`;
+  await drawer.getByPlaceholder(/Brief title/i).fill(title);
   await drawer.getByRole("button", { name: /Save evidence/i }).click();
 
   // Row should appear

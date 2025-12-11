@@ -281,7 +281,7 @@ export function createProject(
   return apiPost<Project>("/projects", payload);
 }
 
-export async function uploadAnalysisDocument(file: File) {
+  export async function uploadAnalysisDocument(file: File) {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -334,18 +334,86 @@ export async function analyzeDocument(documentId: string) {
   }>;
 }
 
-export async function getDocumentGapSummary(documentId: string) {
+// --- Document analysis helpers -------------------------------------------
+
+export type ProjectDocumentSummary = {
+  id: string;
+  title: string;
+  filename: string;
+  created_at: string;
+  analyzed_at: string | null;
+  total_gaps: number;
+  high_gaps: number;
+};
+
+export type SingleGap = {
+  id: string;
+  reg_obligation_id: string;
+  severity: string;
+  gap_reason: string;
+  reg_obligation_text: string;
+};
+
+export type DocumentGapSummary = {
+  document_id: string;
+  total_gaps: number;
+  high_gaps?: number;
+  by_severity?: Record<string, number>;
+  gaps?: SingleGap[];
+};
+
+export async function getProjectDocuments(
+  projectId: string
+): Promise<ProjectDocumentSummary[]> {
   const res = await fetch(
-    `${API_BASE_URL}/api/documents/${documentId}/gaps/summary`
+    `${API_BASE_URL}/api/projects/${projectId}/documents`,
+    {
+      // project dashboard should always show the latest data
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load project documents");
+  }
+
+  return res.json() as Promise<ProjectDocumentSummary[]>;
+}
+
+export async function getDocumentGapSummary(
+  documentId: string
+): Promise<DocumentGapSummary> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/documents/${documentId}/gaps/summary`,
+    { cache: "no-store" }
   );
 
   if (!res.ok) {
     throw new Error("Failed to load gap summary");
   }
 
-  return res.json() as Promise<{
-    document_id: string;
-    total_gaps: number;
-    by_severity: Record<string, number>;
-  }>;
+  return res.json() as Promise<DocumentGapSummary>;
 }
+
+// Convenience helpers for document detail page -----------------------------
+
+export async function getDocument(documentId: string) {
+  const res = await fetch(`${API_BASE_URL}/api/documents/${documentId}`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load document");
+  }
+
+  // Keep this flexible until the backend shape is fully stabilised.
+  return res.json() as Promise<any>;
+}
+
+export async function getDocumentAnalysis(
+  documentId: string
+): Promise<DocumentGapSummary> {
+  // For now this is just an alias to the summary endpoint
+  return getDocumentGapSummary(documentId);
+}
+
