@@ -442,6 +442,8 @@ export default function ProjectDashboard({
                   {/* Evidence cell */}
                   <td className="p-2 align-top">
                     <button
+                      type="button"
+                      role="link"
                       className="text-xs text-blue-600 underline w-fit"
                       onClick={() => openEvidenceModal(item)}
                     >
@@ -473,7 +475,9 @@ export default function ProjectDashboard({
                                   className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
                                   disabled={isImporting}
                                 >
-                                  {isImporting ? "Importing…" : "Use AI Act – Title IV"}
+                                  {isImporting
+                                    ? "Importing…"
+                                    : "Use AI Act checklist (Title IV)"}
                                 </button>
                               )}
                     </div>
@@ -516,7 +520,7 @@ export default function ProjectDashboard({
 
                   <input
                     className="border rounded w-full px-2 py-1 text-sm"
-                    placeholder="Title (e.g. 'Risk management policy v3')"
+                    placeholder="Brief title (e.g. 'Risk management policy v3')"
                     value={evidenceState.newTitle}
                     onChange={(e) =>
                       setEvidenceState((prev) => ({

@@ -10,6 +10,8 @@ import {
   ProjectChecklistSummary,
   ProjectChecklistItem,
   ProjectDocumentSummary,
+  importAiActTitleIV,
+   getProjectDocuments,
 } from "@/lib/api";
 import ProjectDashboard from "@/components/ProjectDashboard";
 
@@ -34,24 +36,21 @@ export default function ProjectPage() {
   const [error, setError] = React.useState<string | null>(null);
 
   async function refreshData() {
-    // guard against projectId being undefined on very first render
     if (!projectId) return;
 
     try {
       setError(null);
       setLoading(true);
 
-      // ⬇️ Only call the endpoints that actually exist
-      const [summaryRes, checklistRes] = await Promise.all([
+      const [summaryRes, checklistRes, docsRes] = await Promise.all([
         apiGet<ProjectChecklistSummary>(`/projects/${projectId}/checklist/summary`),
         apiGet<ProjectChecklistItem[]>(`/projects/${projectId}/checklist`),
+        getProjectDocuments(projectId),
       ]);
 
       setSummary(summaryRes);
       setChecklist(checklistRes);
-
-      // ⬇️ Placeholder until a documents endpoint exists
-      setDocuments([]);
+      setDocuments(docsRes);
     } catch (err: any) {
       console.error(err);
       setError(err?.message ?? "Failed to load project");
@@ -65,12 +64,16 @@ export default function ProjectPage() {
     void refreshData();
   }, [projectId]);
 
-  const handleImportAiActTitleIV = async () => {
+  async function handleImportAiActTitleIV() {
     if (!projectId) return;
-
-    await apiPost(`/projects/${projectId}/checklist/import-ai-act-title-iv`, {});
-    await refreshData();
-  };
+    try {
+      await importAiActTitleIV(projectId);     // calls POST /projects/{id}/ai-act/title-iv/ingest
+      await refreshData();                     // <-- re-fetch summary + checklist + documents
+    } catch (err) {
+      console.error(err);
+      alert("Failed to import AI Act checklist.");
+    }
+  }
 
   if (loading && !summary) {
     return (

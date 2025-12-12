@@ -363,21 +363,20 @@ export type DocumentGapSummary = {
 };
 
 export async function getProjectDocuments(
-  projectId: string
+  projectId: string,
 ): Promise<ProjectDocumentSummary[]> {
   const res = await fetch(
-    `${API_BASE_URL}/api/projects/${projectId}/documents`,
+    `${API_BASE_URL}/api/documents/projects/${projectId}/documents`,
     {
-      // project dashboard should always show the latest data
       cache: "no-store",
-    }
+    },
   );
 
   if (!res.ok) {
     throw new Error("Failed to load project documents");
   }
 
-  return res.json() as Promise<ProjectDocumentSummary[]>;
+  return res.json();
 }
 
 export async function getDocumentGapSummary(

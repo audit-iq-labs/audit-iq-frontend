@@ -1,3 +1,4 @@
+// src/app/projects/[id]/documents/documentId/page.tsx
 import Link from "next/link";
 import { getDocument, getDocumentAnalysis } from "@/lib/api";
 
