@@ -1,6 +1,7 @@
 // src/app/projects/page.tsx
 import Link from "next/link";
-import { getProjects, ProjectListItem } from "@/lib/api";
+import { getProjects } from "@/lib/api/projects";
+import { ProjectListItem } from "@/lib/api/types";
 
 export const dynamic = "force-dynamic"; // keep list fresh while we iterate
 

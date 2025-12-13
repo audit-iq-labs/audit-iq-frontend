@@ -3,39 +3,32 @@
 
 import React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";  
-import {
-  apiGet,
-  apiPost,
-  ProjectChecklistSummary,
-  ProjectChecklistItem,
-  ProjectDocumentSummary,
-  importAiActTitleIV,
-   getProjectDocuments,
-} from "@/lib/api";
+import { useParams } from "next/navigation";
+
+import { apiGet } from "@/lib/api/client";
+import type { ProjectChecklistSummary, ProjectChecklistItem } from "@/lib/api/types";
+import { getProjectDocuments, type ProjectDocumentSummary } from "@/lib/api/documents";
+import { importAiActTitleIV } from "@/lib/api/projects";
+
 import ProjectDashboard from "@/components/ProjectDashboard";
 
 export default function ProjectPage() {
-  const params = useParams();                           // ⬅️ get route params
-  const projectIdRaw = (params as any)?.id;
+  const params = useParams();
+  const projectIdParam = (params as any)?.id;
   const projectId =
-    typeof projectIdRaw === "string"
-      ? projectIdRaw
-      : Array.isArray(projectIdRaw)
-      ? projectIdRaw[0]
-      : undefined;
+    typeof projectIdParam === "string"
+      ? projectIdParam
+      : Array.isArray(projectIdParam)
+        ? projectIdParam[0]
+        : undefined;
 
-  const [summary, setSummary] = React.useState<ProjectChecklistSummary | null>(
-    null,
-  );
+  const [summary, setSummary] = React.useState<ProjectChecklistSummary | null>(null);
   const [checklist, setChecklist] = React.useState<ProjectChecklistItem[]>([]);
-  const [documents, setDocuments] = React.useState<ProjectDocumentSummary[]>(
-    [],
-  );
+  const [documents, setDocuments] = React.useState<ProjectDocumentSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  async function refreshData() {
+  const refreshData = React.useCallback(async () => {
     if (!projectId) return;
 
     try {
@@ -54,77 +47,71 @@ export default function ProjectPage() {
     } catch (err: any) {
       console.error(err);
       setError(err?.message ?? "Failed to load project");
+      setSummary(null);
+      setChecklist([]);
+      setDocuments([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, [projectId]);
 
   React.useEffect(() => {
-    if (!projectId) return;
     void refreshData();
-  }, [projectId]);
+  }, [refreshData]);
 
   async function handleImportAiActTitleIV() {
     if (!projectId) return;
     try {
-      await importAiActTitleIV(projectId);     // calls POST /projects/{id}/ai-act/title-iv/ingest
-      await refreshData();                     // <-- re-fetch summary + checklist + documents
+      await importAiActTitleIV(projectId);
+      await refreshData();
     } catch (err) {
       console.error(err);
       alert("Failed to import AI Act checklist.");
     }
   }
 
-  if (loading && !summary) {
-    return (
-      <main className="max-w-6xl mx-auto px-4 py-8 text-sm text-gray-500">
-        Loading project…
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="max-w-6xl mx-auto px-4 py-8 text-sm text-red-600">
-        {error}
-      </main>
-    );
-  }
-
-  if (!summary) {
-    return (
-      <main className="max-w-6xl mx-auto px-4 py-8 text-sm text-gray-500">
-        Project not found.
-      </main>
-    );
-  }
-
   return (
     <main className="max-w-6xl mx-auto px-4 py-6 space-y-8">
-      {/* Page header */}
+      {/* Header ALWAYS visible -> fixes Playwright flakiness */}
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">AI Act project checklist</h1>
           <p className="text-sm text-gray-600">
-            Track EU AI Act Title IV obligations, upload evidence, and monitor
-            completion.
+            Track EU AI Act Title IV obligations, upload evidence, and monitor completion.
           </p>
         </div>
-        <Link
-          href="/projects"
-          className="text-xs text-blue-600 underline whitespace-nowrap"
-        >
+        <Link href="/projects" className="text-xs text-blue-600 underline whitespace-nowrap">
           ← Back to projects
         </Link>
       </header>
 
+      {/* Status block */}
+      {!projectId && (
+        <div className="text-sm text-red-600">Missing project id in route.</div>
+      )}
+
+      {error && (
+        <div className="text-sm text-red-600 border border-red-200 bg-red-50 rounded-md p-3">
+          {error}
+        </div>
+      )}
+
+      {loading && (
+        <div className="text-sm text-gray-500">Loading project…</div>
+      )}
+
       {/* Checklist + evidence */}
-      <ProjectDashboard
-        projectId={projectId}
-        summary={summary}
-        checklist={checklist}
-        onImportAiActTitleIV={handleImportAiActTitleIV}
-      />
+      {summary ? (
+        <ProjectDashboard
+          projectId={projectId!}
+          summary={summary}
+          checklist={checklist}
+          onImportAiActTitleIV={handleImportAiActTitleIV}
+        />
+      ) : (
+        !loading &&
+        !error && <div className="text-sm text-gray-500">Project not found.</div>
+      )}
 
       {/* Documents section */}
       <section className="border rounded-lg p-6 shadow-sm bg-white">
@@ -140,10 +127,9 @@ export default function ProjectPage() {
           )}
         </div>
 
-        {(!documents || documents.length === 0) ? (
+        {!documents?.length ? (
           <div className="px-4 py-6 text-sm text-gray-500 text-center">
-            No documents yet. Upload a policy, DPIA, or AI system overview to
-            begin automated analysis.
+            No documents yet. Upload a policy, DPIA, or AI system overview to begin automated analysis.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -153,44 +139,27 @@ export default function ProjectPage() {
                   <th className="text-left px-4 py-2 w-1/3">Document</th>
                   <th className="text-left px-4 py-2">Filename</th>
                   <th className="text-left px-4 py-2">Uploaded</th>
-                  <th className="text-right px-4 py-2">
-                    Gaps (high / total)
-                  </th>
+                  <th className="text-right px-4 py-2">Gaps (high / total)</th>
                   <th className="text-right px-4 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {documents.map((doc) => (
-                  <tr
-                    key={doc.id}
-                    className="border-b last:border-b-0 hover:bg-gray-50 align-top"
-                  >
+                  <tr key={doc.id} className="border-b last:border-b-0 hover:bg-gray-50 align-top">
                     <td className="px-4 py-3">
-                      <div className="font-medium">
-                        {doc.title ?? "Untitled document"}
-                      </div>
+                      <div className="font-medium">{doc.title ?? "Untitled document"}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-xs text-gray-600 break-all">
-                        {doc.filename}
-                      </span>
+                      <span className="text-xs text-gray-600 break-all">{doc.filename}</span>
                     </td>
                     <td className="px-4 py-3">
                       {doc.created_at ? doc.created_at.slice(0, 10) : "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {doc.high_gaps != null || doc.total_gaps != null ? (
-                        <span>
-                          <span className="font-semibold">
-                            {doc.high_gaps ?? 0}
-                          </span>{" "}
-                          / {doc.total_gaps ?? 0}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-500">
-                          Not analyzed yet
-                        </span>
-                      )}
+                      <span>
+                        <span className="font-semibold">{doc.high_gaps ?? 0}</span> /{" "}
+                        {doc.total_gaps ?? 0}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link

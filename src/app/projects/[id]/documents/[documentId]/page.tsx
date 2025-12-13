@@ -1,6 +1,6 @@
 // src/app/projects/[id]/documents/documentId/page.tsx
 import Link from "next/link";
-import { getDocument, getDocumentAnalysis } from "@/lib/api";
+import { getDocumentAnalysis } from "@/lib/api/documents";
 
 type PageProps = {
   params: {
@@ -12,14 +12,12 @@ type PageProps = {
 export default async function DocumentAnalysisPage({ params }: PageProps) {
   const { id: projectId, documentId } = params;
 
-  const [document, analysis] = await Promise.all([
-    getDocument(documentId),
-    getDocumentAnalysis(documentId),
-  ]);
+  const analysis = await getDocumentAnalysis(documentId);
 
-  const totalGaps = analysis.total_gaps ?? 0;
-  const highGaps = analysis.high_gaps ?? 0;
+  const document = analysis.document;
   const gaps = analysis.gaps ?? [];
+  const totalGaps = gaps.length;
+  const highGaps = gaps.filter((g) => g.severity === "high").length;
   const hasGaps = gaps.length > 0;
 
   return (

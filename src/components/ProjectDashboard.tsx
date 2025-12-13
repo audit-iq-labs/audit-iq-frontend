@@ -1,17 +1,22 @@
 "use client";
 
 import React from "react";
+
 import {
   apiPut,
   apiPost,
   apiGet,
   apiDelete,
+  API_BASE_URL,
+} from "@/lib/api/client";
+
+import {
   ProjectChecklistSummary,
   ProjectChecklistItem,
-  EvidenceItem,
   ProjectObligationStatus,
-  API_BASE_URL,
-} from "@/lib/api";
+  EvidenceItem,
+} from "@/lib/api/types";
+
 
 interface Props {
   projectId: string;

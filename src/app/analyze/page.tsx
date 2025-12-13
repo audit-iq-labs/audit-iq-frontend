@@ -3,11 +3,13 @@
 
 import { FormEvent, useState } from "react";
 import { useSearchParams } from "next/navigation";
+
 import {
   uploadAnalysisDocument,
   analyzeDocument,
   getDocumentGapSummary,
-} from "@/lib/api";
+  DocumentGapSummary,
+} from "@/lib/api/documents";
 
 type GapRow = {
   id: string;

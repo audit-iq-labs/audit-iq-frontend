@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createProject } from "@/lib/api";
+import { createProject } from "@/lib/api/projects";
 
 export default function NewProjectPage() {
   const router = useRouter();

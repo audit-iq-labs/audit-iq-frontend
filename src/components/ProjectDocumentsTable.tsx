@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ProjectDocumentSummary } from "@/lib/api";
+import type { ProjectDocumentSummary } from "@/lib/api/documents";
 
 interface ProjectDocumentsTableProps {
   projectId: string;
