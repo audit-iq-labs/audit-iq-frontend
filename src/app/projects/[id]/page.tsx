@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { apiGet } from "@/lib/api/client";
-import type { ProjectChecklistSummary, ProjectChecklistItem } from "@/lib/api/types";
+import type { Project, ProjectChecklistSummary, ProjectChecklistItem } from "@/lib/api/types";
 import { getProjectDocuments, type ProjectDocumentSummary } from "@/lib/api/documents";
 import { importAiActTitleIV } from "@/lib/api/projects";
 
@@ -14,7 +14,7 @@ import ProjectDashboard from "@/components/ProjectDashboard";
 
 export default function ProjectPage() {
   const params = useParams();
-  const projectIdParam = (params as any)?.id;
+  const projectIdParam = (params as { id?: string | string[] } | null)?.id;
   const projectId =
     typeof projectIdParam === "string"
       ? projectIdParam
@@ -27,6 +27,7 @@ export default function ProjectPage() {
   const [documents, setDocuments] = React.useState<ProjectDocumentSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [project, setProject] = React.useState<Project | null>(null);
 
   const refreshData = React.useCallback(async () => {
     if (!projectId) return;
@@ -35,21 +36,25 @@ export default function ProjectPage() {
       setError(null);
       setLoading(true);
 
-      const [summaryRes, checklistRes, docsRes] = await Promise.all([
+      const [projectRes, summaryRes, checklistRes, docsRes] = await Promise.all([
+        apiGet<Project>(`/projects/${projectId}`),
         apiGet<ProjectChecklistSummary>(`/projects/${projectId}/checklist/summary`),
         apiGet<ProjectChecklistItem[]>(`/projects/${projectId}/checklist`),
         getProjectDocuments(projectId),
       ]);
 
+      setProject(projectRes);
       setSummary(summaryRes);
       setChecklist(checklistRes);
       setDocuments(docsRes);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message ?? "Failed to load project");
+      const message = err instanceof Error ? err.message : "Failed to load project";
+      setError(message);
       setSummary(null);
       setChecklist([]);
       setDocuments([]);
+      setProject(null);
     } finally {
       setLoading(false);
     }
@@ -75,7 +80,9 @@ export default function ProjectPage() {
       {/* Header ALWAYS visible -> fixes Playwright flakiness */}
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">AI Act project checklist</h1>
+          <h1 className="text-2xl font-semibold">
+            {project?.name ?? (loading ? "Loading project…" : "Project")}
+          </h1>
           <p className="text-sm text-gray-600">
             Track EU AI Act Title IV obligations, upload evidence, and monitor completion.
           </p>

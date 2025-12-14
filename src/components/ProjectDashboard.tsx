@@ -47,11 +47,10 @@ export default function ProjectDashboard({
   // isImportingAiActTitleIV,
 }: Props) {
   const [items, setItems] = React.useState<ChecklistItem[]>(checklist);
-  const [editingJustificationId, setEditingJustificationId] =
-    React.useState<string | null>(null);
-  const [draftJustification, setDraftJustification] =
-    React.useState<string>("");
   const [isImporting, startTransition] = React.useTransition();
+
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [draftJustification, setDraftJustification] = React.useState<Record<string, string>>({});
 
   const [evidenceState, setEvidenceState] = React.useState<{
     open: boolean;
@@ -78,71 +77,80 @@ export default function ProjectDashboard({
   }, [checklist]);
 
 // --- Checklist helpers ---
+  function startEdit(id: string, current: string) {
+    setEditingId(id);
+    setDraftJustification((prev) => ({ ...prev, [id]: current }));
+}
+
+  function handleCancel(id: string) {
+    setEditingId(null);
+    setDraftJustification((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  }
+
+  async function handleSave(id: string) {
+    const value = (draftJustification[id] ?? "").trim();
+
+    try {
+      const updated = await apiPut<ChecklistItem>(
+        `/projects/${projectId}/checklist/${id}`,
+        { justification: value ? value : null },
+      );
+
+      setItems((prev) =>
+        prev.map((row) => (String(row.id) === id ? { ...row, ...updated } : row)),
+      );
+
+      setEditingId(null);
+      setDraftJustification((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update justification");
+    }
+  }
 
   async function handleStatusChange(
     item: ChecklistItem,
     newStatus: ProjectObligationStatus,
   ) {
     const previous = item.status;
+    const itemId = String(item.id);
 
     // Optimistic UI update
     setItems((prev) =>
       prev.map((row) =>
-        row.id === item.id ? { ...row, status: newStatus } : row,
+        String(row.id) === itemId ? { ...row, status: newStatus } : row,
       ),
     );
 
     try {
       const updated = await apiPut<ChecklistItem>(
-        `/projects/${projectId}/checklist/${item.id}`,
+        `/projects/${projectId}/checklist/${itemId}`,
         { status: newStatus },
       );
 
-      // Sync with server response
       setItems((prev) =>
         prev.map((row) =>
-          row.id === item.id ? { ...row, ...updated } : row,
+          String(row.id) === itemId ? { ...row, ...updated } : row,
         ),
       );
     } catch (err) {
       console.error(err);
-      // Revert on error
+
       setItems((prev) =>
         prev.map((row) =>
-          row.id === item.id ? { ...row, status: previous } : row,
+          String(row.id) === itemId ? { ...row, status: previous } : row,
         ),
       );
+
       alert("Failed to update status");
-    }
-  }
-
-  // ------- Justification editing --------
-  function startEditJustification(item: ChecklistItem) {
-    setEditingJustificationId(item.id);
-    setDraftJustification(item.justification ?? "");
-  }
-
-  function cancelEditJustification() {
-    setEditingJustificationId(null);
-    setDraftJustification("");
-  }
-
-  async function saveJustification(item: ChecklistItem) {
-    try {
-      const updated = await apiPut<ChecklistItem>(
-        `/projects/${projectId}/checklist/${item.id}`,
-        { justification: draftJustification || null },
-      );
-
-      setItems((prev) =>
-        prev.map((row) =>
-          row.id === item.id ? { ...row, ...updated } : row,
-        ),
-      );
-      cancelEditJustification();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update justification");
     }
   }
 
@@ -344,21 +352,20 @@ export default function ProjectDashboard({
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="border-b">
+            {items.map((item) => {
+              const itemId = String(item.id);
+
+              return (
+                <tr key={itemId} className="border-b">
                   {/* Obligation cell */}
                   <td className="p-2 align-top">
                     <div className="font-medium">
                       {item.short_label ?? "Untitled obligation"}
                     </div>
                     {item.reference && (
-                      <div className="text-xs text-gray-500">
-                        {item.reference}
-                      </div>
+                      <div className="text-xs text-gray-500">{item.reference}</div>
                     )}
-                    <div className="text-xs text-gray-500 mt-1">
-                      {item.summary}
-                    </div>
+                    <div className="text-xs text-gray-500 mt-1">{item.summary}</div>
                   </td>
 
                   {/* Status cell */}
@@ -373,13 +380,13 @@ export default function ProjectDashboard({
                         )
                       }
                     >
-                      {(
-                        ["todo", "in_progress", "done", "not_applicable"] as const
-                      ).map((status) => (
-                        <option key={status} value={status}>
-                          {STATUS_LABELS[status]}
-                        </option>
-                      ))}
+                      {(["todo", "in_progress", "done", "not_applicable"] as const).map(
+                        (status) => (
+                          <option key={status} value={status}>
+                            {STATUS_LABELS[status]}
+                          </option>
+                        ),
+                      )}
                     </select>
                   </td>
 
@@ -393,12 +400,12 @@ export default function ProjectDashboard({
                         const value = e.target.value || null;
                         try {
                           const updated = await apiPut<ChecklistItem>(
-                            `/projects/${projectId}/checklist/${item.id}`,
+                            `/projects/${projectId}/checklist/${itemId}`,
                             { due_date: value },
                           );
                           setItems((prev) =>
                             prev.map((row) =>
-                              row.id === item.id ? { ...row, ...updated } : row,
+                              String(row.id) === itemId ? { ...row, ...updated } : row,
                             ),
                           );
                         } catch (err) {
@@ -410,33 +417,46 @@ export default function ProjectDashboard({
                   </td>
 
                   {/* Justification cell */}
-                  <td className="p-2 align-top">
-                    {editingJustificationId === item.id ? (
-                      <div className="flex flex-col gap-2">
-
+                  <td className="px-2 py-2">
+                    {editingId === itemId ? (
+                      <div className="space-y-2">
+                        <textarea
+                          className="w-full rounded-md border p-2 text-sm"
+                          rows={3}
+                          value={draftJustification[itemId] ?? item.justification ?? ""}
+                          onChange={(e) =>
+                            setDraftJustification((prev) => ({
+                              ...prev,
+                              [itemId]: e.target.value,
+                            }))
+                          }
+                          placeholder="Add justification / notes…"
+                        />
                         <div className="flex gap-2">
                           <button
-                            className="text-xs px-2 py-1 rounded bg-blue-600 text-white"
-                            onClick={() => saveJustification(item)}
+                            className="rounded-md bg-blue-600 px-3 py-1 text-sm text-white"
+                            onClick={() => handleSave(itemId)}
                           >
                             Save
                           </button>
                           <button
-                            className="text-xs px-2 py-1 rounded border"
-                            onClick={cancelEditJustification}
+                            className="rounded-md border px-3 py-1 text-sm"
+                            onClick={() => handleCancel(itemId)}
                           >
                             Cancel
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs">
-                          {item.justification || "No justification yet"}
-                        </span>
+                      <div className="space-y-1">
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                          {item.justification?.trim()
+                            ? item.justification
+                            : "No justification yet"}
+                        </div>
                         <button
-                          className="text-xs text-blue-600 underline w-fit"
-                          onClick={() => startEditJustification(item)}
+                          className="text-xs text-blue-600 underline"
+                          onClick={() => startEdit(itemId, item.justification ?? "")}
                         >
                           Edit
                         </button>
@@ -456,7 +476,8 @@ export default function ProjectDashboard({
                     </button>
                   </td>
                 </tr>
-              ))}
+              );
+            })}
               {items.length === 0 && (
                 <tr>
                   <td

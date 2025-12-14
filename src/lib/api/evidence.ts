@@ -1,4 +1,7 @@
-import type { ProjectObligationStatus, EvidenceFileType, EvidenceLite } from "./types";
+import type { ProjectObligationStatus, EvidenceLite } from "./types";
+import { API_BASE_URL } from "./client";
+import { apiGet, apiPost, apiDelete } from "./client";
+import type { EvidenceItem, EvidenceFileType, UUID } from "./types";
 
 export interface ProjectChecklistItem {
   id: string;
@@ -21,23 +24,6 @@ export interface ProjectChecklistItem {
   summary?: string | null;
 }
 
-export interface EvidenceItem {
-  id: string;
-  project_id: string;
-  obligation_id: string | null;
-  title: string;
-  description: string | null;
-  storage_url: string | null;
-  file_type: EvidenceFileType | null;
-  uploaded_at: string; // ISO timestamp
-
-  // optional if some endpoints return extras
-  source?: string;
-  file_url?: string | null;
-  created_at?: string;
-  project_obligation_id?: string | null;
-}
-
 export interface ChecklistWithEvidence {
   obligation_id: string;
   reference: string | null;
@@ -47,4 +33,59 @@ export interface ChecklistWithEvidence {
   justification: string | null;
   evidence_count: number;
   evidence: EvidenceLite[];
+}
+
+export function listEvidence(projectId: UUID, projectObligationId: UUID) {
+  return apiGet<EvidenceItem[]>(
+    `/projects/${projectId}/checklist/${projectObligationId}/evidence`,
+  );
+}
+
+export function addEvidenceUrl(
+  projectId: UUID,
+  projectObligationId: UUID,
+  input: {
+    title: string;
+    url: string;
+    file_type?: EvidenceFileType; // usually "url"
+    notes?: string | null;
+  },
+) {
+  return apiPost<EvidenceItem>(
+    `/projects/${projectId}/checklist/${projectObligationId}/evidence`,
+    {
+      file_type: input.file_type ?? "url",
+      title: input.title,
+      url: input.url,
+      notes: input.notes ?? null,
+    },
+  );
+}
+
+export async function deleteEvidence(projectId: UUID, evidenceId: UUID) {
+  // Common pattern: DELETE /projects/{projectId}/evidence/{evidenceId}
+  // If your backend uses a different route, tell me the exact path and I’ll adjust.
+  await apiDelete(`/projects/${projectId}/evidence/${evidenceId}`);
+}
+
+export async function uploadEvidenceFile(
+  projectId: UUID,
+  projectObligationId: UUID,
+  file: File,
+  title: string,
+): Promise<EvidenceItem> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("title", title);
+
+  const res = await fetch(
+    `${API_BASE_URL}/projects/${projectId}/checklist/${projectObligationId}/evidence/upload`,
+    { method: "POST", body: form },
+  );
+
+  if (!res.ok) {
+    throw new Error(`API error ${res.status} on uploadEvidenceFile`);
+  }
+
+  return (await res.json()) as EvidenceItem;
 }

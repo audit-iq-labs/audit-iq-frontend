@@ -46,8 +46,16 @@ export type UploadedDocument = {
   created_at: string;
 };
 
+export type AnalyzedDocument = {
+  id: UUID;
+  project_id: UUID;
+  filename?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+};
+
 export type AnalyzeResult = {
-  document: any;
+  document: AnalyzedDocument;
   extracted_obligations: {
     id: UUID;
     obligation_text: string;
@@ -104,7 +112,7 @@ export async function uploadAnalysisDocument(file: File): Promise<UploadedDocume
   });
 
   if (!res.ok) throw new Error("Failed to upload document");
-  return res.json();
+  return (await res.json()) as UploadedDocument;
 }
 
 export function analyzeDocument(documentId: UUID): Promise<AnalyzeResult> {

@@ -1,13 +1,9 @@
-import { apiGet, apiPost } from "./client";
+import { apiGet, apiPut } from "./client";
+
 import type {
-  CreateProjectInput,
-  Project,
-  ProjectActivityItem,
   ProjectChecklistItem,
   ProjectChecklistSummary,
   ChecklistWithEvidence,
-  ProjectListItem,
-  ProjectSummary,
 } from "./types";
 
 export function getProjectChecklistSummary(
@@ -32,3 +28,21 @@ export function getProjectChecklistWithEvidence(
   );
 }
 
+export type ChecklistItemUpdate = {
+  status?: "todo" | "in_progress" | "done" | "not_applicable";
+  due_date?: string | null;
+  justification?: string | null;
+};
+
+export async function updateChecklistItem(
+  projectId: string,
+  projectObligationId: string,
+  patch: ChecklistItemUpdate,
+): Promise<ProjectChecklistItem> {
+  // Backend route used in your logs earlier:
+  // PUT /projects/{projectId}/checklist/{projectObligationId}
+  return apiPut<ProjectChecklistItem>(
+    `/projects/${projectId}/checklist/${projectObligationId}`,
+    patch,
+  );
+}
