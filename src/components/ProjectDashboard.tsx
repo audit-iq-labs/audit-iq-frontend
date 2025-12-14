@@ -392,28 +392,55 @@ export default function ProjectDashboard({
 
                   {/* Due date cell */}
                   <td className="p-2 align-top">
-                    <input
-                      type="date"
-                      className="border rounded px-2 py-1 text-xs"
-                      value={item.due_date ?? ""}
-                      onChange={async (e) => {
-                        const value = e.target.value || null;
-                        try {
-                          const updated = await apiPut<ChecklistItem>(
-                            `/projects/${projectId}/checklist/${itemId}`,
-                            { due_date: value },
-                          );
-                          setItems((prev) =>
-                            prev.map((row) =>
-                              String(row.id) === itemId ? { ...row, ...updated } : row,
-                            ),
-                          );
-                        } catch (err) {
-                          console.error(err);
-                          alert("Failed to update due date");
-                        }
-                      }}
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        className="border rounded px-2 py-1 text-xs"
+                        value={item.due_date ?? ""}
+                        onChange={async (e) => {
+                          const value = e.target.value || null;
+                          try {
+                            const updated = await apiPut<ChecklistItem>(
+                              `/projects/${projectId}/checklist/${itemId}`,
+                              { due_date: value },
+                            );
+                            setItems((prev) =>
+                              prev.map((row) =>
+                                String(row.id) === itemId ? { ...row, ...updated } : row,
+                              ),
+                            );
+                          } catch (err) {
+                            console.error(err);
+                            alert("Failed to update due date");
+                          }
+                        }}
+                      />
+
+                      {item.due_date && (
+                        <button
+                          type="button"
+                          className="text-xs text-red-600 underline"
+                          onClick={async () => {
+                            try {
+                              const updated = await apiPut<ChecklistItem>(
+                                `/projects/${projectId}/checklist/${itemId}`,
+                                { due_date: null },
+                              );
+                              setItems((prev) =>
+                                prev.map((row) =>
+                                  String(row.id) === itemId ? { ...row, ...updated } : row,
+                                ),
+                              );
+                            } catch (err) {
+                              console.error(err);
+                              alert("Failed to clear due date");
+                            }
+                          }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
                   </td>
 
                   {/* Justification cell */}
