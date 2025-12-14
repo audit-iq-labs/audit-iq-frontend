@@ -2,12 +2,52 @@
 
 import { FormEvent, useState } from "react";
 import { useSearchParams } from "next/navigation";
-
+import { ApiError } from "@/lib/api/client";
 import {
   uploadAnalysisDocument,
   analyzeDocument,
   getDocumentGapSummary,
 } from "@/lib/api/documents";
+
+import {
+  UPLOAD_RULES,
+  buildAcceptAttr,
+  validateFile,
+  isPdf,
+  formatBytes,
+} from "@/lib/uploadRules";
+
+function friendlyMessage(err: unknown): string {
+  // Network / fetch failure
+  if (err instanceof TypeError) {
+    return "Cannot reach the server. Please try again in sometime";
+  }
+
+  // Our typed API errors
+  if (err instanceof ApiError) {
+    const { status, detail } = err;
+
+    if (status === 413) {
+    return `This PDF is too large. Max allowed is ${formatBytes(UPLOAD_RULES.analyze.maxBytes)}.`;
+    }
+
+    if (status === 400) {
+      return detail || "Invalid PDF. Please upload a valid document.";
+    }
+
+    if (status === 404) {
+      return detail || "Requested resource not found.";
+    }
+
+    if (status >= 500) {
+      return "Server error during analysis. Please retry in a moment.";
+    }
+
+    return detail || "Request failed. Please retry.";
+  }
+
+  return "Something went wrong. Please retry.";
+}
 
 type GapRow = {
   id: string;
@@ -57,6 +97,7 @@ export default function AnalyzeClient() {
 
     try {
       setIsSubmitting(true);
+      setError(null);
 
       // 1) Upload the document (optionally linked to a project later)
       const uploaded = await uploadAnalysisDocument(selectedFile);
@@ -95,9 +136,7 @@ export default function AnalyzeClient() {
       setResult(normalised);
     } catch (err: unknown) {
       console.error(err);
-      const message =
-        err instanceof Error ? err.message : "Something went wrong while analyzing the document.";
-      setError(message);
+      setError(friendlyMessage(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -124,18 +163,50 @@ export default function AnalyzeClient() {
           <label className="block text-sm font-medium">
             <span>Choose file</span>
             <input
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-              className="mt-1 block w-full text-sm"
+            type="file"
+            accept={buildAcceptAttr(UPLOAD_RULES.analyze.allowedExt)} // ".pdf"
+            onChange={(e) => {
+                const f = e.target.files?.[0] ?? null;
+
+                setSelectedFile(null);
+                setError(null);
+
+                if (!f) return;
+
+                // strict PDF check (extension or mime)
+                if (!isPdf(f)) {
+                setError("Only PDF files are supported for analysis.");
+                e.currentTarget.value = "";
+                return;
+                }
+
+                const msg = validateFile(f, UPLOAD_RULES.analyze);
+                if (msg) {
+                setError(`${msg} Please upload a smaller PDF.`);
+                e.currentTarget.value = "";
+                return;
+                }
+
+                setSelectedFile(f);
+            }}
             />
           </label>
 
-          {error && (
-            <p className="text-sm text-red-600" role="alert">
-              {error}
-            </p>
-          )}
+            {error && (
+            <div className="rounded border p-3 text-sm">
+                <div className="text-red-600">{error}</div>
+                <button
+                className="mt-2 text-blue-600 underline"
+                onClick={() => {
+                    setError(null);
+                    // optionally re-run last action if you store last payload
+                }}
+                type="button"
+                >
+                Retry
+                </button>
+            </div>
+            )}
 
           <button
             type="submit"

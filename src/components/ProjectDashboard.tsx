@@ -7,7 +7,7 @@ import {
   apiPost,
   apiGet,
   apiDelete,
-  API_BASE_URL,
+  apiPostForm
 } from "@/lib/api/client";
 
 import {
@@ -17,6 +17,7 @@ import {
   EvidenceItem,
 } from "@/lib/api/types";
 
+import { UPLOAD_RULES, buildAcceptAttr, validateFile } from "@/lib/uploadRules";
 
 interface Props {
   projectId: string;
@@ -196,6 +197,16 @@ export default function ProjectDashboard({
     }));
   }
 
+  async function updateItem(itemId: string, patch: Partial<ChecklistItem>) {
+    const updated = await apiPut<ChecklistItem>(
+      `/projects/${projectId}/checklist/${itemId}`,
+      patch,
+    );
+    setItems((prev) =>
+      prev.map((row) => (String(row.id) === itemId ? { ...row, ...updated } : row)),
+    );
+  }
+
   async function addEvidence() {
     const obligationId = evidenceState.obligationId;
     if (!obligationId) return;
@@ -221,15 +232,7 @@ export default function ProjectDashboard({
         }
         formData.append("file", evidenceState.newFile);
 
-        const response = await fetch(`${API_BASE_URL}/evidence/upload`, {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to upload evidence file");
-        }
-        created = (await response.json()) as EvidenceItem;
+        created = await apiPostForm<EvidenceItem>("/evidence/upload", formData);
       } else {
         // No file → JSON route
         created = await apiPost<EvidenceItem>(
@@ -270,7 +273,7 @@ export default function ProjectDashboard({
       );
     } catch (err) {
       console.error(err);
-      alert("Failed to add evidence");
+      alert(err instanceof Error ? err.message : "Failed to add evidence");
     }
   }
 
@@ -400,15 +403,7 @@ export default function ProjectDashboard({
                         onChange={async (e) => {
                           const value = e.target.value || null;
                           try {
-                            const updated = await apiPut<ChecklistItem>(
-                              `/projects/${projectId}/checklist/${itemId}`,
-                              { due_date: value },
-                            );
-                            setItems((prev) =>
-                              prev.map((row) =>
-                                String(row.id) === itemId ? { ...row, ...updated } : row,
-                              ),
-                            );
+                            await updateItem(itemId, { due_date: value });
                           } catch (err) {
                             console.error(err);
                             alert("Failed to update due date");
@@ -422,15 +417,7 @@ export default function ProjectDashboard({
                           className="text-xs text-red-600 underline"
                           onClick={async () => {
                             try {
-                              const updated = await apiPut<ChecklistItem>(
-                                `/projects/${projectId}/checklist/${itemId}`,
-                                { due_date: null },
-                              );
-                              setItems((prev) =>
-                                prev.map((row) =>
-                                  String(row.id) === itemId ? { ...row, ...updated } : row,
-                                ),
-                              );
+                              await updateItem(itemId, { due_date: null });
                             } catch (err) {
                               console.error(err);
                               alert("Failed to clear due date");
@@ -600,12 +587,24 @@ export default function ProjectDashboard({
                     <input
                       type="file"
                       className="text-xs"
-                      onChange={(e) =>
-                        setEvidenceState((prev) => ({
-                          ...prev,
-                          newFile: e.target.files?.[0] ?? null,
-                        }))
-                      }
+                      accept={buildAcceptAttr(UPLOAD_RULES.evidence.allowedExt)}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+
+                        if (!f) {
+                          setEvidenceState((prev) => ({ ...prev, newFile: null }));
+                          return;
+                        }
+
+                        const msg = validateFile(f, UPLOAD_RULES.evidence);
+                        if (msg) {
+                          alert(msg);
+                          e.currentTarget.value = "";
+                          return;
+                        }
+
+                        setEvidenceState((prev) => ({ ...prev, newFile: f }));
+                      }}
                     />
                     {evidenceState.newFile && (
                       <span className="text-[11px] text-gray-500 truncate max-w-[180px]">
