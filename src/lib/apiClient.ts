@@ -1,3 +1,5 @@
+//src/lib/apiClient.ts
+
 import { supabase } from "@/lib/supabaseClient";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -19,5 +21,25 @@ export async function apiGet(path: string) {
     throw new Error(`GET ${path} failed: ${res.status} ${text}`);
   }
 
+  return res.json();
+}
+
+export async function apiPost(path: string, body: unknown) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`POST ${path} failed: ${res.status} ${text}`);
+  }
   return res.json();
 }

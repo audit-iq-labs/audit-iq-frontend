@@ -1,5 +1,9 @@
-import { API_BASE_URL, apiGet, apiPost, ApiError } from "./client";
+// src/lib/api/document.ts
+
+import { supabase } from "@/lib/supabaseClient";
+import { API_BASE_URL, apiPost, ApiError } from "./client";
 import type { UUID } from "./types";
+import { apiGet as authedGet, apiPost as authedPost } from "@/lib/apiClient";
 
 /* ---------------- Types ---------------- */
 
@@ -97,7 +101,7 @@ export type DocumentAnalysisOut = {
 };
 
 export function getDocumentAnalysis(documentId: string): Promise<DocumentAnalysisOut> {
-  return apiGet<DocumentAnalysisOut>(`/api/documents/${documentId}/analysis`);
+  return authedGet(`/api/documents/${documentId}/analysis`);
 }
 
 /* ---------- API ---------- */
@@ -106,9 +110,13 @@ export async function uploadAnalysisDocument(file: File): Promise<UploadedDocume
   const formData = new FormData();
   formData.append("file", file);
 
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
   const res = await fetch(`${API_BASE_URL}/api/documents/upload`, {
     method: "POST",
     body: formData,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 
   if (!res.ok) {
@@ -132,18 +140,13 @@ export async function uploadAnalysisDocument(file: File): Promise<UploadedDocume
 }
 
 export function analyzeDocument(documentId: UUID): Promise<AnalyzeResult> {
-  // IMPORTANT: typed generic so caller doesn't get `unknown`
-  return apiPost<AnalyzeResult>(`/api/documents/${documentId}/analyze`, {});
+  return authedPost(`/api/documents/${documentId}/analyze`, {});
 }
 
 export function getProjectDocuments(projectId: UUID) {
-  return apiGet<ProjectDocumentSummary[]>(
-    `/api/documents/projects/${projectId}/documents`
-  );
+  return authedGet(`/api/documents/projects/${projectId}/documents`);
 }
 
 export function getDocumentGapSummary(documentId: UUID) {
-  return apiGet<DocumentGapSummary>(
-    `/api/documents/${documentId}/gaps/summary`
-  );
+  return authedGet(`/api/documents/${documentId}/gaps/summary`);
 }

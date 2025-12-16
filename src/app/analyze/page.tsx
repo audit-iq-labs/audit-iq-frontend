@@ -1,4 +1,5 @@
 // src/app/analyze/page.tsx
+
 import { Suspense } from "react";
 import AnalyzeClient from "./AnalyzeClient";
 

@@ -3,6 +3,7 @@
 import React from "react";
 import type { ProjectSummary, ProjectQualityDetail } from "@/lib/api";
 import ProjectActivityTimeline from "./ProjectActivityTimeline";
+import UsageCard from "@/components/UsageCard";
 
 interface Props {
   projectId: string;
@@ -41,22 +42,26 @@ export default function ProjectOverviewPanel({
   return (
     <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       {/* Header */}
-      <div className="flex flex-col justify-between gap-2 md:flex-row md:items-center">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        {/* Left: Project info */}
         <div>
           <h1 className="text-xl font-semibold text-gray-900">
             Project: {project?.name ?? "Untitled project"}
           </h1>
+
           {project?.ai_use_case && (
             <p className="text-sm text-gray-600">
               Use case: {project.ai_use_case}
             </p>
           )}
+
           <p className="mt-1 text-xs text-gray-500">
             ID: <span className="font-mono">{projectId}</span>
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2 text-xs">
+        {/* Middle: Risk / Jurisdiction pills */}
+        <div className="flex flex-wrap gap-2 text-xs md:max-w-md">
           {project?.risk_category && (
             <span className="rounded-full bg-red-50 px-3 py-1 font-medium text-red-700">
               Risk: {project.risk_category}
@@ -68,6 +73,11 @@ export default function ProjectOverviewPanel({
               Jurisdiction: {project.jurisdiction.join(", ")}
             </span>
           )}
+        </div>
+
+        {/* Right: Usage / Plan awareness */}
+        <div className="md:w-80 shrink-0">
+          <UsageCard />
         </div>
       </div>
 

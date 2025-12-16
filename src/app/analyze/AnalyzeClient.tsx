@@ -1,8 +1,11 @@
+// src/app/analyze/AnalyzeClient.tsx
+
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
+import { apiGet } from "@/lib/apiClient";
 import {
   uploadAnalysisDocument,
   analyzeDocument,
@@ -43,6 +46,10 @@ function friendlyMessage(err: unknown): string {
       return "Server error during analysis. Please retry in a moment.";
     }
 
+    if (status === 402) {
+      return detail || "You’ve reached your monthly analysis limit. Please upgrade or wait for the reset.";
+    }
+
     return detail || "Request failed. Please retry.";
   }
 
@@ -79,6 +86,45 @@ export default function AnalyzeClient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+
+  const [quotaNote, setQuotaNote] = useState<string | null>(null);
+  const [quotaAllowed, setQuotaAllowed] = useState<boolean>(true);
+
+  async function loadEntitlements() {
+    try {
+      const ent = await apiGet("/me/entitlements");
+      const q = ent?.quota?.documents_per_month;
+      const resetsOn = ent?.quota_window?.resets_on;
+
+      if (!q) return;
+
+      if (q.allowed === false) {
+        setQuotaAllowed(false);
+        setQuotaNote(
+          `Limit reached. Resets on ${resetsOn ? new Date(resetsOn).toLocaleDateString() : "—"}.`
+        );
+      } else {
+        setQuotaAllowed(true);
+        const remaining =
+          q.limit === -1 ? "Unlimited" : q.remaining ?? (q.limit === null ? null : "—");
+        setQuotaNote(
+          q.limit === -1
+            ? "Unlimited analyses."
+            : `${remaining} analyses left • Resets on ${
+                resetsOn ? new Date(resetsOn).toLocaleDateString() : "—"
+              }.`
+        );
+      }
+    } catch {
+      // If entitlement fetch fails, don't block core flow
+      setQuotaAllowed(true);
+      setQuotaNote(null); // or "Usage info unavailable"
+    }
+  }
+
+  useEffect(() => {
+    loadEntitlements();
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -134,6 +180,7 @@ export default function AnalyzeClient() {
       };
 
       setResult(normalised);
+      await loadEntitlements();
     } catch (err: unknown) {
       console.error(err);
       setError(friendlyMessage(err));
@@ -210,11 +257,16 @@ export default function AnalyzeClient() {
 
           <button
             type="submit"
-            disabled={isSubmitting || !selectedFile}
+            disabled={isSubmitting || !selectedFile || !quotaAllowed}
             className="w-full inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:bg-gray-300"
           >
             {isSubmitting ? "Analyzing…" : "Upload & analyze"}
           </button>
+          {quotaNote && (
+            <p className={`text-xs ${quotaAllowed ? "text-gray-600" : "text-red-700"}`}>
+              {quotaNote}
+            </p>
+          )}
         </form>
       </section>
 

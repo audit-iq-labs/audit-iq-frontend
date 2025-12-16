@@ -1,3 +1,5 @@
+// src/app/page.tsx
+
 import Image from "next/image";
 import { redirect } from "next/navigation";
 
