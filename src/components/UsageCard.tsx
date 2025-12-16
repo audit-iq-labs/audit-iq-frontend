@@ -64,6 +64,14 @@ export default function UsageCard() {
           </>
         )}
       </div>
+      <div className="mt-3">
+        <a
+            href="/billing"
+            className="text-xs text-blue-600 hover:underline"
+        >
+            Manage plan & billing →
+        </a>
+      </div>
     </div>
   );
 }
