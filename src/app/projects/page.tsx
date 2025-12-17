@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import RequireAuth from "@/components/RequireAuth";
+import AppNav from "@/components/AppNav";
 import { getProjects } from "@/lib/api/projects";
 import type { ProjectListItem } from "@/lib/api/types";
 
@@ -35,7 +36,9 @@ function ProjectsIndexInner() {
 
   const isEmpty = projects !== null && projects.length === 0;
 
-  return (
+return (
+  <>
+    <AppNav />
     <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
@@ -116,6 +119,7 @@ function ProjectsIndexInner() {
         </div>
       </section>
     </main>
+    </>
   );
 }
 

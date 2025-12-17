@@ -3,27 +3,24 @@
 "use client";
 
 import RequireAuth from "@/components/RequireAuth";
+import AppNav from "@/components/AppNav";
 import { useEntitlements } from "@/lib/entitlements/useEntitlements";
 import { createCheckoutSession } from "@/lib/api/billing";
 
-export default function BillingPage() {
+function BillingInner() {
   const { data, loading, error } = useEntitlements();
 
-  if (loading) {
-    return <div className="p-8 text-sm">Loading billing details…</div>;
-  }
-
-  if (error || !data) {
-    return <div className="p-8 text-sm text-red-600">Failed to load billing info.</div>;
-  }
+  if (loading) return <div className="p-8 text-sm">Loading billing details…</div>;
+  if (error || !data) return <div className="p-8 text-sm text-red-600">Failed to load billing info.</div>;
 
   const pkg = data.package;
   const quota = data.quota?.documents_per_month;
   const quotaWindow = data.quota_window;
 
   return (
-    <RequireAuth>
-    <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
+    <>
+      <AppNav />
+      <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
       {/* Header */}
       <header>
         <h1 className="text-2xl font-semibold">Plan & Billing</h1>
@@ -80,24 +77,28 @@ export default function BillingPage() {
 
       {/* Actions */}
       <section className="flex gap-3">
-        <button
-        onClick={async () => {
-            const { checkout_url } = await createCheckoutSession("pro");
-            globalThis.location.href = checkout_url;
-        }}
-        className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white"
-        >
-        Upgrade plan
-        </button>
+          <button
+            onClick={async () => {
+              const { checkout_url } = await createCheckoutSession("pro");
+              globalThis.location.href = checkout_url;
+            }}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white"
+          >
+            Upgrade plan
+          </button>
+          <a href="mailto:sales@audit-iq.com" className="rounded-md border px-4 py-2 text-sm">
+            Contact sales
+          </a>
+        </section>
+      </main>
+    </>
+  );
+}
 
-        <a
-          href="mailto:sales@audit-iq.com"
-          className="rounded-md border px-4 py-2 text-sm"
-        >
-          Contact sales
-        </a>
-      </section>
-    </main>
+export default function BillingPage() {
+  return (
+    <RequireAuth>
+      <BillingInner />
     </RequireAuth>
   );
 }
