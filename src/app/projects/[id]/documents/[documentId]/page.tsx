@@ -26,9 +26,10 @@ type Analysis = {
 };
 
 function DocumentAnalysisInner() {
-  const params = useParams();
-  const projectId = (params as any)?.id as string | undefined;
-  const documentId = (params as any)?.documentId as string | undefined;
+  const { id: projectId, documentId } = useParams<{
+    id?: string;
+    documentId?: string;
+  }>();
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,18 +40,23 @@ function DocumentAnalysisInner() {
       if (!documentId) return;
       try {
         setError(null);
-        const a = await getDocumentAnalysis(documentId);
-        if (!cancelled) setAnalysis(a as Analysis);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Failed to load document analysis");
-      }
+        const a: Analysis = await getDocumentAnalysis(documentId);
+        if (!cancelled) setAnalysis(a);
+        } catch (e: unknown) {
+          if (!cancelled) {
+            const msg = e instanceof Error
+              ? e.message
+              : "Failed to load document analysis";
+            setError(msg);
+          }
+        }
     })();
     return () => {
       cancelled = true;
     };
   }, [documentId]);
 
-  const gaps = analysis?.gaps ?? [];
+  const gaps = useMemo<Gap[]>(() => analysis?.gaps ?? [], [analysis?.gaps]);
   const totalGaps = gaps.length;
   const highGaps = useMemo(
     () => gaps.filter((g) => g.severity === "high").length,

@@ -1,7 +1,7 @@
 // src/lib/api/document.ts
 
 import { supabase } from "@/lib/supabaseClient";
-import { API_BASE_URL, apiPost, ApiError } from "./client";
+import { API_BASE_URL, ApiError } from "./client";
 import type { UUID } from "./types";
 import { apiGet as authedGet, apiPost as authedPost } from "@/lib/apiClient";
 

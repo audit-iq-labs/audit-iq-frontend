@@ -1,3 +1,5 @@
+//src/lib/entitlements/useEntitlements.ts
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -42,8 +44,12 @@ export function useEntitlements() {
         setLoading(true);
         const res = await apiGet("/me/entitlements");
         if (!cancelled) setData(res);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Failed to load entitlements");
+      } catch (e: unknown) {
+        if (!cancelled) {
+          const msg =
+            e instanceof Error ? e.message : "Failed to load entitlements";
+          setError(msg);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

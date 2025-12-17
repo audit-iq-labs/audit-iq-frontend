@@ -1,12 +1,11 @@
 // src/app/projects/page.tsx
-
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import RequireAuth from "@/components/RequireAuth";
 import { getProjects } from "@/lib/api/projects";
-import { ProjectListItem } from "@/lib/api/types";
+import type { ProjectListItem } from "@/lib/api/types";
 
 function ProjectsIndexInner() {
   const [projects, setProjects] = useState<ProjectListItem[] | null>(null);
@@ -14,15 +13,17 @@ function ProjectsIndexInner() {
 
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       try {
         setError(null);
-        const items = await getProjects();
-        if (!cancelled) setProjects(items);
-      } catch (e: any) {
+        const list = await getProjects(); // api client will attach Bearer token in browser
+        if (!cancelled) setProjects(list);
+      } catch (err: unknown) {
         if (!cancelled) {
-          setError(e?.message ?? "Failed to load projects");
-          setProjects([]);
+          const msg = err instanceof Error ? err.message : "Failed to load projects";
+          setError(msg);
+          setProjects([]); // treat as empty to keep UI stable
         }
       }
     })();
@@ -32,7 +33,7 @@ function ProjectsIndexInner() {
     };
   }, []);
 
-  const isEmpty = projects && projects.length === 0;
+  const isEmpty = projects !== null && projects.length === 0;
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -77,29 +78,19 @@ function ProjectsIndexInner() {
             <tbody>
               {projects === null ? (
                 <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-6 text-sm text-gray-500 text-center"
-                  >
+                  <td colSpan={4} className="px-4 py-6 text-sm text-gray-500 text-center">
                     Loading projects…
                   </td>
                 </tr>
               ) : isEmpty ? (
                 <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-6 text-sm text-gray-500 text-center"
-                  >
-                    No projects yet. Create your first project to start tracking
-                    compliance work.
+                  <td colSpan={4} className="px-4 py-6 text-sm text-gray-500 text-center">
+                    No projects yet. Create your first project to start tracking compliance work.
                   </td>
                 </tr>
               ) : (
                 projects.map((p) => (
-                  <tr
-                    key={p.id}
-                    className="border-b last:border-b-0 hover:bg-gray-50"
-                  >
+                  <tr key={p.id} className="border-b last:border-b-0 hover:bg-gray-50">
                     <td className="px-4 py-3 align-top">
                       <div className="font-medium">{p.name}</div>
                     </td>
@@ -113,10 +104,7 @@ function ProjectsIndexInner() {
                     </td>
 
                     <td className="px-4 py-3 align-top text-right">
-                      <Link
-                        href={`/projects/${p.id}`}
-                        className="text-xs text-blue-600 underline"
-                      >
+                      <Link href={`/projects/${p.id}`} className="text-xs text-blue-600 underline">
                         View project
                       </Link>
                     </td>

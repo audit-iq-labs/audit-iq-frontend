@@ -8,8 +8,13 @@ import { supabase } from "@/lib/supabaseClient";
 import { apiGet } from "@/lib/apiClient";
 
 export default function AppHome() {
+  type AppHomeData = {
+    me: unknown;
+    ent: unknown;
+  };
+
   const router = useRouter();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AppHomeData | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,8 +29,8 @@ export default function AppHome() {
         const me = await apiGet("/me");
         const ent = await apiGet("/me/entitlements");
         setData({ me, ent });
-      } catch (e: any) {
-        setErr(e.message ?? String(e));
+      } catch (e: unknown) {
+        setErr(e instanceof Error ? e.message : String(e));
       }
     })();
   }, [router]);
