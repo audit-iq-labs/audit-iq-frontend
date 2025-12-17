@@ -6,6 +6,7 @@ import { FormEvent, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { apiGet } from "@/lib/apiClient";
+import RequireAuth from "@/components/RequireAuth";
 import {
   uploadAnalysisDocument,
   analyzeDocument,
@@ -190,6 +191,7 @@ export default function AnalyzeClient() {
   }
 
   return (
+    <RequireAuth>
     <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Single Document Compliance Check</h1>
@@ -347,5 +349,6 @@ export default function AnalyzeClient() {
         </section>
       )}
     </main>
+    </RequireAuth>
   );
 }

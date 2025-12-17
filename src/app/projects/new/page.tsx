@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createProject } from "@/lib/api/projects";
+import RequireAuth from "@/components/RequireAuth";
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -45,6 +46,7 @@ export default function NewProjectPage() {
   }
 
   return (
+    <RequireAuth>
     <div className="max-w-xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">
@@ -140,5 +142,6 @@ export default function NewProjectPage() {
         </div>
       </form>
     </div>
+    </RequireAuth>
   );
 }

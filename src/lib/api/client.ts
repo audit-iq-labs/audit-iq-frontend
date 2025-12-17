@@ -1,7 +1,43 @@
 //src/lib/api/client.ts
 
+import { supabase } from "@/lib/supabaseClient";
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+export type ApiRequestOptions = {
+  /** If provided, sent as `Authorization: Bearer <token>` */
+  token?: string;
+  /** Extra headers to merge in */
+  headers?: Record<string, string>;
+};
+
+async function buildHeaders(
+  base?: Record<string, string>,
+  opts?: ApiRequestOptions,
+): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { ...(base ?? {}), ...(opts?.headers ?? {}) };
+
+  // Explicit token wins.
+  if (opts?.token) {
+    headers.Authorization = `Bearer ${opts.token}`;
+    return headers;
+  }
+
+  // Best-effort: if running in the browser, pull the current Supabase session.
+  // (On the server, you should pass opts.token via cookies/SSR wiring.)
+  if (typeof window !== "undefined") {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (token) headers.Authorization = `Bearer ${token}`;
+    } catch {
+      // ignore
+    }
+  }
+
+  return headers;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -29,7 +65,13 @@ async function parseError(res: Response): Promise<string> {
     const data = await res.json();
 
     if (typeof data?.detail === "string") return data.detail;
-    if (Array.isArray(data?.detail)) return "Request validation failed.";
+    if (Array.isArray(data?.detail)) {
+      // FastAPI 422 payload: [{ loc: [...], msg: "...", type: "..." }, ...]
+      const first = data.detail[0];
+      const loc = Array.isArray(first?.loc) ? first.loc.join(".") : "request";
+      const msg = first?.msg ?? "Validation error";
+      return `${loc}: ${msg}`;
+    }
     if (typeof data?.message === "string") return data.message;
 
     return `Request failed (${res.status})`;
@@ -51,10 +93,11 @@ async function parseJsonOrNull<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
+export async function apiGet<T>(path: string, opts?: ApiRequestOptions): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     // cache: "no-store",
     // credentials: "include", // enable if you rely on cookies/sessions
+    headers: await buildHeaders(undefined, opts),
   });
 
   if (!res.ok) {
@@ -65,10 +108,10 @@ export async function apiGet<T>(path: string): Promise<T> {
   return await parseJsonOrNull<T>(res);
 }
 
-export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+export async function apiPut<T>(path: string, body: unknown, opts?: ApiRequestOptions): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: await buildHeaders({ "Content-Type": "application/json" }, opts),
     body: JSON.stringify(body),
     // credentials: "include",
   });
@@ -81,10 +124,10 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return await parseJsonOrNull<T>(res);
 }
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+export async function apiPost<T>(path: string, body: unknown, opts?: ApiRequestOptions): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await buildHeaders({ "Content-Type": "application/json" }, opts),
     body: JSON.stringify(body),
     // credentials: "include",
   });
@@ -97,10 +140,11 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return await parseJsonOrNull<T>(res);
 }
 
-export async function apiDelete(path: string): Promise<void> {
+export async function apiDelete(path: string, opts?: ApiRequestOptions): Promise<void> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "DELETE",
     // credentials: "include",
+    headers: await buildHeaders(undefined, opts),
   });
 
   // Treat 2xx and 204 as success
@@ -110,11 +154,16 @@ export async function apiDelete(path: string): Promise<void> {
   }
 }
 
-export async function apiPostForm<T>(path: string, formData: FormData): Promise<T> {
+export async function apiPostForm<T>(
+  path: string,
+  formData: FormData,
+  opts?: ApiRequestOptions,
+): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
     body: formData,
     credentials: "include",
+    headers: await buildHeaders(undefined, opts),
   });
 
   if (!res.ok) {

@@ -3,12 +3,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams?.get("next") ?? "/projects";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,7 +30,7 @@ export default function LoginPage() {
 
     if (error) return setMsg(error.message);
 
-    if (data.session) router.replace("/projects");
+    if (data.session) router.replace(next);
   }
 
   return (
@@ -71,7 +73,7 @@ export default function LoginPage() {
 
         <div className="text-sm mt-4">
           New here?{" "}
-          <Link className="underline" href="/signup">
+          <Link className="underline" href={`/signup?next=${encodeURIComponent(next)}`}>
             Create an account
           </Link>
         </div>

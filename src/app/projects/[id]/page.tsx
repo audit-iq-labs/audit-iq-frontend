@@ -4,6 +4,7 @@
 import React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import RequireAuth from "@/components/RequireAuth";
 
 import { apiGet } from "@/lib/api/client";
 import type { Project, ProjectChecklistSummary, ProjectChecklistItem } from "@/lib/api/types";
@@ -76,6 +77,7 @@ export default function ProjectPage() {
   }
 
   return (
+    <RequireAuth>
     <main className="max-w-6xl mx-auto px-4 py-6 space-y-8">
       {/* Header ALWAYS visible -> fixes Playwright flakiness */}
       <header className="flex items-center justify-between">
@@ -184,5 +186,6 @@ export default function ProjectPage() {
         )}
       </section>
     </main>
+    </RequireAuth>
   );
 }

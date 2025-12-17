@@ -1,18 +1,36 @@
 // src/app/projects/page.tsx
+
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import RequireAuth from "@/components/RequireAuth";
 import { getProjects } from "@/lib/api/projects";
 import { ProjectListItem } from "@/lib/api/types";
 
-export const dynamic = "force-dynamic"; // keep list fresh while we iterate
+function ProjectsIndexInner() {
+  const [projects, setProjects] = useState<ProjectListItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-export default async function ProjectsIndexPage() {
-  let projects: ProjectListItem[] | null = null;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setError(null);
+        const items = await getProjects();
+        if (!cancelled) setProjects(items);
+      } catch (e: any) {
+        if (!cancelled) {
+          setError(e?.message ?? "Failed to load projects");
+          setProjects([]);
+        }
+      }
+    })();
 
-  try {
-    projects = await getProjects();
-  } catch (err) {
-    console.error("Failed to load projects", err);
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const isEmpty = projects && projects.length === 0;
 
@@ -34,6 +52,12 @@ export default async function ProjectsIndexPage() {
         </Link>
       </header>
 
+      {error && (
+        <div className="rounded-md border bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       <section className="bg-white rounded-xl shadow-sm border">
         <div className="border-b px-4 py-3">
           <h2 className="text-sm font-semibold">Project list</h2>
@@ -50,11 +74,8 @@ export default async function ProjectsIndexPage() {
               </tr>
             </thead>
 
-            {/* Hydration-safe tbody (same structure on server and client) */}
             <tbody>
-              {/* SERVER + CLIENT ALWAYS RENDER ONE ROW FIRST */}
               {projects === null ? (
-                // Loading state (SSR + CSR identical)
                 <tr>
                   <td
                     colSpan={4}
@@ -64,7 +85,6 @@ export default async function ProjectsIndexPage() {
                   </td>
                 </tr>
               ) : isEmpty ? (
-                // Empty state
                 <tr>
                   <td
                     colSpan={4}
@@ -75,7 +95,6 @@ export default async function ProjectsIndexPage() {
                   </td>
                 </tr>
               ) : (
-                // Actual project rows
                 projects.map((p) => (
                   <tr
                     key={p.id}
@@ -86,7 +105,6 @@ export default async function ProjectsIndexPage() {
                     </td>
 
                     <td className="px-4 py-3 align-top">
-                      {/* Stable value to avoid timezone mismatches */}
                       {p.created_at?.slice(0, 10) ?? ""}
                     </td>
 
@@ -110,5 +128,13 @@ export default async function ProjectsIndexPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function ProjectsIndexPage() {
+  return (
+    <RequireAuth>
+      <ProjectsIndexInner />
+    </RequireAuth>
   );
 }

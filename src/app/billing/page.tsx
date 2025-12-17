@@ -2,7 +2,9 @@
 
 "use client";
 
+import RequireAuth from "@/components/RequireAuth";
 import { useEntitlements } from "@/lib/entitlements/useEntitlements";
+import { createCheckoutSession } from "@/lib/api/billing";
 
 export default function BillingPage() {
   const { data, loading, error } = useEntitlements();
@@ -17,9 +19,10 @@ export default function BillingPage() {
 
   const pkg = data.package;
   const quota = data.quota?.documents_per_month;
-  const window = data.quota_window;
+  const quotaWindow = data.quota_window;
 
   return (
+    <RequireAuth>
     <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
       {/* Header */}
       <header>
@@ -59,10 +62,10 @@ export default function BillingPage() {
               </strong>
             </div>
 
-            {window?.resets_on && (
+            {quotaWindow?.resets_on && (
               <div className="text-gray-600">
                 Resets on{" "}
-                {new Date(window.resets_on).toLocaleDateString()}
+                {new Date(quotaWindow.resets_on).toLocaleDateString()}
               </div>
             )}
 
@@ -78,10 +81,13 @@ export default function BillingPage() {
       {/* Actions */}
       <section className="flex gap-3">
         <button
-          disabled
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white opacity-60"
+        onClick={async () => {
+            const { checkout_url } = await createCheckoutSession("pro");
+            globalThis.location.href = checkout_url;
+        }}
+        className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white"
         >
-          Upgrade plan
+        Upgrade plan
         </button>
 
         <a
@@ -92,5 +98,6 @@ export default function BillingPage() {
         </a>
       </section>
     </main>
+    </RequireAuth>
   );
 }
