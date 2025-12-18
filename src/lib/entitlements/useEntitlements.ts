@@ -15,6 +15,7 @@ export type QuotaEntry = {
 };
 
 export type EntitlementsResponse = {
+  organization_id?: string; // ✅ add
   package?: {
     plan_id: string;
     plan_name: string;

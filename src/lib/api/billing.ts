@@ -1,7 +1,12 @@
+// src/lib/api/billing.ts
+
 import { API_BASE_URL, ApiError } from "./client";
 import { supabase } from "@/lib/supabaseClient";
 
-export async function createCheckoutSession(plan_id: string): Promise<{ checkout_url: string }> {
+export async function createCheckoutSession(
+  organization_id: string,
+  plan_id: string
+): Promise<{ checkout_url: string }> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
 
@@ -11,7 +16,7 @@ export async function createCheckoutSession(plan_id: string): Promise<{ checkout
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ plan_id }),
+    body: JSON.stringify({ organization_id, plan_id }),
   });
 
   if (!res.ok) {

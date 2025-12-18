@@ -16,6 +16,7 @@ function BillingInner() {
   const pkg = data.package;
   const quota = data.quota?.documents_per_month;
   const quotaWindow = data.quota_window;
+  const orgId = data.organization_id;
 
   return (
     <>
@@ -79,7 +80,11 @@ function BillingInner() {
       <section className="flex gap-3">
           <button
             onClick={async () => {
-              const { checkout_url } = await createCheckoutSession("pro");
+              if (!orgId) {
+                alert("No organization selected. Please select an organization first.");
+                return;
+              }
+              const { checkout_url } = await createCheckoutSession(orgId, "consultant");
               globalThis.location.href = checkout_url;
             }}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white"
