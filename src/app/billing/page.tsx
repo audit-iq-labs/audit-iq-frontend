@@ -15,7 +15,6 @@ function BillingInner() {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // simple pre-checkout profile (local for now)
   const [profile, setProfile] = useState({
     contact_name: "",
     company_name: "",
@@ -25,14 +24,18 @@ function BillingInner() {
   });
 
   if (loading) return <div className="p-8 text-sm">Loading billing details…</div>;
-  if (error || !data) {
+  if (error || !data)
     return <div className="p-8 text-sm text-red-600">Failed to load billing info.</div>;
-  }
 
   const pkg = data.package;
   const quota = data.quota?.documents_per_month;
   const quotaWindow = data.quota_window;
   const orgId = data.organization_id;
+
+  const currentPlan = pkg?.plan_id ?? "demo";
+
+  const showStarter = currentPlan === "demo";
+  const showConsultant = currentPlan === "demo" || currentPlan === "starter";
 
   async function proceedToCheckout() {
     if (!selectedPlan || !orgId) return;
@@ -40,7 +43,7 @@ function BillingInner() {
     try {
       setSubmitting(true);
 
-      // 🔜 Next step: POST profile to /billing/profile here
+      // 🔜 Next step: POST profile to /billing/profile
 
       const { checkout_url } = await createCheckoutSession(orgId, selectedPlan);
       globalThis.location.href = checkout_url;
@@ -87,8 +90,7 @@ function BillingInner() {
               <div>
                 Documents analyzed:{" "}
                 <strong>
-                  {quota.used} /{" "}
-                  {quota.limit === -1 ? "Unlimited" : quota.limit}
+                  {quota.used} / {quota.limit === -1 ? "Unlimited" : quota.limit}
                 </strong>
               </div>
 
@@ -102,45 +104,49 @@ function BillingInner() {
           )}
         </section>
 
-        {/* Upgrade options (only on Demo) */}
-        {pkg?.plan_id === "demo" && (
+        {/* Upgrade / Plan options */}
+        {(showStarter || showConsultant) && (
           <section className="bg-white border rounded-xl p-6 space-y-4">
-            <h2 className="text-sm font-semibold">Choose a plan</h2>
+            <h2 className="text-sm font-semibold">
+              {currentPlan === "starter" ? "Upgrade your plan" : "Choose a plan"}
+            </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Starter */}
-              <button
-                className="text-left border rounded-lg p-4 hover:bg-gray-50"
-                onClick={() => {
-                  setSelectedPlan("starter");
-                  setShowModal(true);
-                }}
-              >
-                <div className="font-medium">Starter</div>
-                <div className="text-xs text-gray-600 mt-1">
-                  For individual companies & early teams
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  AUD $149 / month
-                </div>
-              </button>
+              {showStarter && (
+                <button
+                  className="text-left border rounded-lg p-4 hover:bg-gray-50"
+                  onClick={() => {
+                    setSelectedPlan("starter");
+                    setShowModal(true);
+                  }}
+                >
+                  <div className="font-medium">Starter</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    For individual companies & early teams
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    AUD $149 / month
+                  </div>
+                </button>
+              )}
 
-              {/* Consultant */}
-              <button
-                className="text-left border rounded-lg p-4 hover:bg-gray-50"
-                onClick={() => {
-                  setSelectedPlan("consultant");
-                  setShowModal(true);
-                }}
-              >
-                <div className="font-medium">Consultant</div>
-                <div className="text-xs text-gray-600 mt-1">
-                  For consultants managing multiple clients
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  AUD $399 / month
-                </div>
-              </button>
+              {showConsultant && (
+                <button
+                  className="text-left border rounded-lg p-4 hover:bg-gray-50"
+                  onClick={() => {
+                    setSelectedPlan("consultant");
+                    setShowModal(true);
+                  }}
+                >
+                  <div className="font-medium">Consultant</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    For consultants managing multiple clients
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    AUD $399 / month
+                  </div>
+                </button>
+              )}
             </div>
 
             <a
