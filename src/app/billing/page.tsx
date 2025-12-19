@@ -1,3 +1,5 @@
+// src/app/billing/page.tsx
+
 "use client";
 
 import { useState } from "react";
@@ -5,6 +7,7 @@ import RequireAuth from "@/components/RequireAuth";
 import AppNav from "@/components/AppNav";
 import { useEntitlements } from "@/lib/entitlements/useEntitlements";
 import { createCheckoutSession } from "@/lib/api/billing";
+import { apiPost } from "@/lib/apiClient";
 
 type PlanId = "starter" | "consultant";
 
@@ -43,7 +46,7 @@ function BillingInner() {
     try {
       setSubmitting(true);
 
-      // 🔜 Next step: POST profile to /billing/profile
+      await apiPost("/api/billing/profile", profile);
 
       const { checkout_url } = await createCheckoutSession(orgId, selectedPlan);
       globalThis.location.href = checkout_url;
