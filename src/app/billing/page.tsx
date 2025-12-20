@@ -17,6 +17,7 @@ function BillingInner() {
   const [selectedPlan, setSelectedPlan] = useState<PlanId | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
 
   const [profile, setProfile] = useState({
     contact_name: "",
@@ -39,6 +40,21 @@ function BillingInner() {
 
   const showStarter = currentPlan === "demo";
   const showConsultant = currentPlan === "demo" || currentPlan === "starter";
+
+  async function openBillingPortal() {
+    if (!orgId) return;
+
+    try {
+      setOpeningPortal(true);
+      const res = await apiPost("/api/billing/portal", { organization_id: orgId });
+      window.location.href = res.portal_url;
+    } catch (e) {
+      console.error(e);
+      alert("Failed to open billing portal. Please try again.");
+    } finally {
+      setOpeningPortal(false);
+    }
+  }
 
   async function proceedToCheckout() {
     if (!selectedPlan || !orgId) return;
@@ -81,6 +97,22 @@ function BillingInner() {
             </p>
           )}
         </section>
+
+        {currentPlan !== "demo" && (
+          <section className="bg-white border rounded-xl p-6">
+            <h2 className="text-sm font-semibold mb-2">Billing management</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Update payment method, download invoices, or manage your subscription.
+            </p>
+            <button
+              className="inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-800 disabled:opacity-50"
+              onClick={openBillingPortal}
+              disabled={openingPortal}
+            >
+              {openingPortal ? "Opening…" : "Manage billing"}
+            </button>
+          </section>
+        )}
 
         {/* Usage */}
         <section className="bg-white border rounded-xl p-6">
