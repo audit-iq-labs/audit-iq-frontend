@@ -36,6 +36,23 @@ export default function ProjectPage() {
   const [project, setProject] = React.useState<Project | null>(null);
   const [exporting, setExporting] = React.useState(false);
 
+  function getFilenameFromContentDisposition(cd: string | null): string | null {
+    if (!cd) return null;
+
+    // Examples:
+    // attachment; filename="Audit-IQ_Org_Project_Audit-Readiness_2025-12-22.pdf"
+    // attachment; filename=Audit-IQ_....pdf
+    const match = cd.match(/filename\*=UTF-8''([^;]+)|filename="([^"]+)"|filename=([^;]+)/i);
+    const raw = match?.[1] || match?.[2] || match?.[3];
+    if (!raw) return null;
+
+    try {
+      return decodeURIComponent(raw.trim());
+    } catch {
+      return raw.trim();
+    }
+  }
+
   async function handleExportAuditPdf() {
     if (!projectId) return;
 
@@ -45,9 +62,7 @@ export default function ProjectPage() {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
 
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
+      if (!token) throw new Error("Not authenticated");
 
       const res = await fetch(buildAuditExportUrl(projectId), {
         method: "GET",
@@ -65,9 +80,16 @@ export default function ProjectPage() {
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
 
+      const cd = res.headers.get("content-disposition");
+      console.log("content-disposition from fetch:", cd);
+      const serverName = getFilenameFromContentDisposition(cd)?.replace(/^"+|"+$/g, "");
+
       const a = document.createElement("a");
       a.href = url;
-      a.download = `audit-ready-${projectId}.pdf`;
+
+      // ✅ prefer backend filename, fallback to existing behavior
+      a.download = serverName ?? `audit-ready-${projectId}.pdf`;
+
       document.body.appendChild(a);
       a.click();
       a.remove();
