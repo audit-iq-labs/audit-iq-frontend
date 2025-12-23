@@ -51,6 +51,10 @@ function friendlyMessage(err: unknown): string {
       return detail || "You’ve reached your monthly analysis limit. Please upgrade or wait for the reset.";
     }
 
+    if (status === 403) {
+      return detail || "Your plan does not allow document analysis. Please upgrade.";
+    }
+
     return detail || "Request failed. Please retry.";
   }
 
@@ -147,7 +151,11 @@ export default function AnalyzeClient() {
       setError(null);
 
       // 1) Upload the document (optionally linked to a project later)
-      const uploaded = await uploadAnalysisDocument(selectedFile);
+      if (!projectId) {
+        setError("Missing projectId in URL. Please open this page from a project.");
+        return;
+      }
+      const uploaded = await uploadAnalysisDocument(selectedFile, projectId);
 
       // 2) Run analysis for that document
       const analysis = await analyzeDocument(uploaded.id);

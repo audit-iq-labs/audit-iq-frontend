@@ -1,6 +1,7 @@
 //src/lib/apiClient.ts
 
 import { supabase } from "@/lib/supabaseClient";
+import { ApiError } from "@/lib/api/client";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -18,7 +19,7 @@ export async function apiGet(path: string) {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`GET ${path} failed: ${res.status} ${text}`);
+    throw new ApiError(res.status, text, text);
   }
 
   return res.json();
@@ -39,7 +40,7 @@ export async function apiPost(path: string, body: unknown) {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`POST ${path} failed: ${res.status} ${text}`);
+    throw new ApiError(res.status, text, text);
   }
   return res.json();
 }

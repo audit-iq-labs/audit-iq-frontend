@@ -106,28 +106,38 @@ export function getDocumentAnalysis(documentId: string): Promise<DocumentAnalysi
 
 /* ---------- API ---------- */
 
-export async function uploadAnalysisDocument(file: File): Promise<UploadedDocument> {
+export async function uploadAnalysisDocument(
+  file: File,
+  projectId: string
+): Promise<UploadedDocument> {
   const formData = new FormData();
   formData.append("file", file);
 
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
 
-  const res = await fetch(`${API_BASE_URL}/api/documents/upload`, {
-    method: "POST",
-    body: formData,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await fetch(
+    `${API_BASE_URL}/api/documents/upload?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: "POST",
+      body: formData,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }
+  );
 
   if (!res.ok) {
-    // reuse parseError exactly like apiGet/apiPost
     const contentType = res.headers.get("content-type") ?? "";
     let detail = `Request failed (${res.status})`;
     try {
       if (contentType.includes("application/json")) {
         const data = await res.json();
         if (typeof data?.detail === "string") detail = data.detail;
-        else if (Array.isArray(data?.detail)) detail = "Request validation failed.";
+        else if (Array.isArray(data?.detail)) {
+          // Make FastAPI 422 actually useful
+          detail = data.detail
+            .map((d: any) => `${(d.loc ?? []).join(".")}: ${d.msg ?? "invalid"}`)
+            .join(" | ");
+        }
       } else {
         const txt = await res.text();
         if (txt?.trim()) detail = txt.trim().slice(0, 300);
