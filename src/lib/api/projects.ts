@@ -1,4 +1,6 @@
-import { apiGet, apiPost } from "./client";
+// src/lib/api/projects.ts
+
+import { apiGet, apiPost,apiPostForm  } from "./client";
 import type {
   Project,
   ProjectListItem,
@@ -23,7 +25,8 @@ export function createProject(payload: CreateProjectInput): Promise<Project> {
 }
 
 export async function importAiActTitleIV(projectId: string): Promise<void> {
-  await apiPost(`/projects/${projectId}/ai-act/title-iv/ingest`, {});
+  const form = new FormData(); // empty form => file=None on backend
+  await apiPostForm(`/projects/${projectId}/ai-act/title-iv/ingest`, form);
 }
 
 export function getProjectActivity(
