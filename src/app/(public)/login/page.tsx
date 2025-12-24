@@ -1,4 +1,4 @@
-// src/app/login/page.tsx
+// src/app/(public)/login/page.tsx
 
 "use client";
 
@@ -16,21 +16,37 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
+    async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+        const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        });
 
-    setLoading(false);
+        if (error) {
+        setMsg(error.message);
+        return;
+        }
 
-    if (error) return setMsg(error.message);
+        // Ensure session exists (cookie may be set asynchronously)
+        const { data: s } = await supabase.auth.getSession();
 
-    if (data.session) router.replace(next);
+        if (!s.session) {
+        setMsg("Signed in, but session not ready yet. Please try again.");
+        return;
+        }
+
+        router.replace(next);
+        router.refresh();
+    } catch (err: unknown) {
+        setMsg(err instanceof Error ? err.message : "Login failed");
+    } finally {
+        setLoading(false);
+    }
   }
 
   return (

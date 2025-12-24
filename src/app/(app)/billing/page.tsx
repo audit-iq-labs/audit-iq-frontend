@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
-import AppNav from "@/components/AppNav";
 import { useEntitlements } from "@/lib/entitlements/useEntitlements";
 import { createCheckoutSession, createPortalSession } from "@/lib/api/billing";
 import { apiPost } from "@/lib/apiClient";
@@ -141,7 +140,6 @@ function BillingInner() {
 
   return (
     <>
-      <AppNav />
 
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
         {/* Header */}
