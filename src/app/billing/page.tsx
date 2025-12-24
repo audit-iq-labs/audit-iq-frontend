@@ -1,23 +1,23 @@
 // src/app/billing/page.tsx
-
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import AppNav from "@/components/AppNav";
 import { useEntitlements } from "@/lib/entitlements/useEntitlements";
-import { createCheckoutSession } from "@/lib/api/billing";
+import { createCheckoutSession, createPortalSession } from "@/lib/api/billing";
 import { apiPost } from "@/lib/apiClient";
 
 type PlanId = "starter" | "consultant";
 
 function BillingInner() {
-  const { data, loading, error } = useEntitlements();
+  const { data, loading, error, refetch } = useEntitlements();
 
   const [selectedPlan, setSelectedPlan] = useState<PlanId | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [profile, setProfile] = useState({
     contact_name: "",
@@ -27,30 +27,91 @@ function BillingInner() {
     use_case: "",
   });
 
-  if (loading) return <div className="p-8 text-sm">Loading billing details…</div>;
-  if (error || !data)
-    return <div className="p-8 text-sm text-red-600">Failed to load billing info.</div>;
+  // ✅ derive orgId safely (no hooks)
+  const orgId = data?.organization_id ?? data?.organization?.id ?? null;
+
+  /**
+   * ✅ IMPORTANT
+   * This useEffect MUST be before any return
+   */
+  useEffect(() => {
+    if (!orgId) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get("success");
+
+    if (success !== "1") return;
+
+    setSyncing(true);
+
+    (async () => {
+      try {
+        await apiPost("/api/billing/sync", { organization_id: orgId });
+        await refetch(); // fetch updated plan
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSyncing(false);
+
+        params.delete("success");
+        const next =
+          window.location.pathname +
+          (params.toString() ? `?${params}` : "");
+        window.history.replaceState({}, "", next);
+      }
+    })();
+  }, [orgId, refetch]);
+
+  if (syncing) {
+    return (
+      <div className="p-8 text-sm">
+        Updating your subscription…
+      </div>
+    );
+  }
+
+  // 🚨 ONLY NOW do we early-return
+  if (loading) {
+    return <div className="p-8 text-sm">Loading billing details…</div>;
+  }
+
+  if (error || !data) {
+    return (
+      <div className="p-8 text-sm text-red-600">
+        Failed to load billing info.
+      </div>
+    );
+  }
 
   const pkg = data.package;
   const quota = data.quota?.documents_per_month;
   const quotaWindow = data.quota_window;
-  const orgId = data.organization_id;
 
   const currentPlan = pkg?.plan_id ?? "demo";
-
   const showStarter = currentPlan === "demo";
   const showConsultant = currentPlan === "demo" || currentPlan === "starter";
+
+  const canSubmitProfile = Boolean(
+    orgId &&
+      selectedPlan &&
+      profile.contact_name.trim() &&
+      profile.company_name.trim() &&
+      profile.country.trim() &&
+      profile.team_size.trim() &&
+      profile.use_case.trim()
+  );
 
   async function openBillingPortal() {
     if (!orgId) return;
 
     try {
       setOpeningPortal(true);
-      const res = await apiPost("/api/billing/portal", { organization_id: orgId });
-      window.location.href = res.portal_url;
+      const returnUrl = `${window.location.origin}/billing`;
+      const { portal_url } = await createPortalSession(orgId, returnUrl);
+      window.location.href = portal_url;
     } catch (e) {
       console.error(e);
-      alert("Failed to open billing portal. Please try again.");
+      alert("Failed to open billing portal.");
     } finally {
       setOpeningPortal(false);
     }
@@ -58,14 +119,21 @@ function BillingInner() {
 
   async function proceedToCheckout() {
     if (!selectedPlan || !orgId) return;
+    if (!canSubmitProfile) return;
 
     try {
       setSubmitting(true);
 
-      await apiPost("/api/billing/profile", profile);
+      await apiPost("/api/billing/profile", {
+        organization_id: orgId,
+        ...profile,
+      });
 
       const { checkout_url } = await createCheckoutSession(orgId, selectedPlan);
-      globalThis.location.href = checkout_url;
+      window.location.href = checkout_url;
+    } catch (e) {
+      console.error(e);
+      alert("Failed to start checkout.");
     } finally {
       setSubmitting(false);
     }
@@ -131,8 +199,7 @@ function BillingInner() {
 
               {quotaWindow?.resets_on && (
                 <div className="text-gray-600">
-                  Resets on{" "}
-                  {new Date(quotaWindow.resets_on).toLocaleDateString()}
+                  Resets on {new Date(quotaWindow.resets_on).toLocaleDateString()}
                 </div>
               )}
             </div>
@@ -159,9 +226,7 @@ function BillingInner() {
                   <div className="text-xs text-gray-600 mt-1">
                     For individual companies & early teams
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    AUD $149 / month
-                  </div>
+                  <div className="text-xs text-gray-500 mt-1">AUD $149 / month</div>
                 </button>
               )}
 
@@ -177,9 +242,7 @@ function BillingInner() {
                   <div className="text-xs text-gray-600 mt-1">
                     For consultants managing multiple clients
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    AUD $399 / month
-                  </div>
+                  <div className="text-xs text-gray-500 mt-1">AUD $399 / month</div>
                 </button>
               )}
             </div>
@@ -198,9 +261,7 @@ function BillingInner() {
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
-            <h3 className="text-lg font-semibold">
-              Tell us a bit about yourself
-            </h3>
+            <h3 className="text-lg font-semibold">Tell us a bit about yourself</h3>
 
             <div className="space-y-3 text-sm">
               <input
@@ -223,9 +284,7 @@ function BillingInner() {
                 className="w-full border rounded px-3 py-2"
                 placeholder="Country"
                 value={profile.country}
-                onChange={(e) =>
-                  setProfile({ ...profile, country: e.target.value })
-                }
+                onChange={(e) => setProfile({ ...profile, country: e.target.value })}
               />
               <select
                 className="w-full border rounded px-3 py-2"
@@ -262,9 +321,10 @@ function BillingInner() {
                 Cancel
               </button>
               <button
-                className="bg-blue-600 text-white text-sm px-4 py-2 rounded"
+                className="bg-blue-600 text-white text-sm px-4 py-2 rounded disabled:opacity-50"
                 onClick={proceedToCheckout}
-                disabled={submitting}
+                disabled={submitting || !canSubmitProfile}
+                title={!canSubmitProfile ? "Please complete all fields" : undefined}
               >
                 {submitting ? "Redirecting…" : "Continue to payment"}
               </button>
