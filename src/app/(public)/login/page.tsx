@@ -7,51 +7,55 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
+async function waitForSession(maxTries = 5) {
+  for (let i = 0; i < maxTries; i++) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) return data.session;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return null;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams?.get("next") ?? "/projects";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-    async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
 
     try {
-        const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-        });
-
-        if (error) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
         setMsg(error.message);
         return;
-        }
+      }
 
-        // Ensure session exists (cookie may be set asynchronously)
-        const { data: s } = await supabase.auth.getSession();
-
-        if (!s.session) {
+      const session = await waitForSession();
+      if (!session) {
         setMsg("Signed in, but session not ready yet. Please try again.");
         return;
-        }
+      }
 
-        router.replace(next);
-        router.refresh();
+      router.replace(next);
+      router.refresh();
     } catch (err: unknown) {
-        setMsg(err instanceof Error ? err.message : "Login failed");
+      setMsg(err instanceof Error ? err.message : "Login failed");
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-xl border p-6">
+    <div className="flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-xl border p-6 bg-white">
         <h1 className="text-2xl font-semibold">Login</h1>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-3">

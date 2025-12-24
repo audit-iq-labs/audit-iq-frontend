@@ -1,4 +1,4 @@
-// src/app/signup/page.tsx
+// src/app/(public)/signup/page.tsx
 
 "use client";
 
@@ -22,32 +22,37 @@ export default function SignupPage() {
     setLoading(true);
     setMsg(null);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      // IMPORTANT: must match Supabase Auth Redirect URLs.
-      options: { emailRedirectTo: `${window.location.origin}/login` },
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        // Must match Supabase Auth Redirect URLs.
+        options: { emailRedirectTo: `${window.location.origin}/login` },
+      });
 
-    setLoading(false);
+      if (error) {
+        setMsg(error.message);
+        return;
+      }
 
-    if (error) {
-      setMsg(error.message);
-      return;
+      // If email confirmation is ON, session will be null.
+      if (!data.session) {
+        setMsg("Account created. Please check your email to confirm, then login.");
+        return;
+      }
+
+      router.replace(next);
+      router.refresh();
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : "Signup failed");
+    } finally {
+      setLoading(false);
     }
-
-    // If email confirmation is ON, session will be null and user must confirm email.
-    if (!data.session) {
-      setMsg("Signup successful. Please check your email to confirm, then login.");
-      return;
-    }
-
-    router.replace(next);
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-xl border p-6">
+    <div className="flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-xl border p-6 bg-white">
         <h1 className="text-2xl font-semibold">Create your account</h1>
         <p className="text-sm text-zinc-500 mt-1">
           Use email + password (you can add OAuth later).
