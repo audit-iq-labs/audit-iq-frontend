@@ -8,15 +8,19 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const Pricing = () => {
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.audit-iq.com";
+    const APP_URL =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
 
     const planToUrl = {
-    starter: `${APP_URL}/signup?plan=starter`,
-    consultant: `${APP_URL}/signup?plan=consultant`,
+        demo: `${APP_URL}/signup?plan=demo&next=${encodeURIComponent("/projects")}`,
+        starter: `${APP_URL}/signup?plan=starter&next=${encodeURIComponent("/onboarding/organization")}`,
+        consultant: `${APP_URL}/signup?plan=consultant&next=${encodeURIComponent("/onboarding/organization")}`,
     };
   
     const plans = [
     {
+      key: "starter",
       name: "🟦 Starter",
       subtitle: "For SMEs formalising compliance processes",
       description: "For SMEs formalising compliance processes",
@@ -32,10 +36,11 @@ const Pricing = () => {
         "Standard email support",
         "Access to roadmap updates",
       ],
-      cta: "Request Demo",
+      cta: "Get Starter",
       popular: false,
     },
     {
+      key: "consultant",
       name: "🟩 Consultant",
       subtitle: "Most Popular",
       description: "For compliance consultants, auditors, and boutique advisory firms",
@@ -51,7 +56,7 @@ const Pricing = () => {
         "Priority email support",
         "Early access to beta features",
       ],
-      cta: "Request Demo",
+      cta: "Get Consultant",
       popular: true,
     },
     {
@@ -140,11 +145,9 @@ const Pricing = () => {
                 >
                     <Link
                     href={
-                        plan.name.includes("Starter")
-                        ? planToUrl.starter
-                        : plan.name.includes("Consultant")
-                        ? planToUrl.consultant
-                        : "/contact"
+                    plan.key === "starter" ? planToUrl.starter :
+                    plan.key === "consultant" ? planToUrl.consultant :
+                    "/contact"
                     }
                     >
                     {plan.cta} <ArrowRight className="ml-2" />

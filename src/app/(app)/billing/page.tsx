@@ -1,4 +1,4 @@
-// src/app/billing/page.tsx
+// src/app/(app)/billing/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,7 +17,7 @@ function BillingInner() {
   const [submitting, setSubmitting] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [syncing, setSyncing] = useState(false);
-
+  
   const [profile, setProfile] = useState({
     contact_name: "",
     company_name: "",
@@ -29,6 +29,43 @@ function BillingInner() {
   // ✅ derive orgId safely (no hooks)
   const orgId = data?.organization_id ?? data?.organization?.id ?? null;
 
+  const API_BASE =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  
+  useEffect(() => {
+    if (!orgId) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/billing/profile?organization_id=${orgId}`);
+        if (!res.ok) return;
+        const p = await res.json();
+
+        setProfile((cur) => ({
+          ...cur,
+          contact_name: cur.contact_name || p.contact_name || "",
+          team_size: cur.team_size || p.team_size || "",
+          use_case: cur.use_case || p.use_case || "",
+        }));
+      } catch (e) {
+        console.warn("billing profile fetch failed", e);
+      }
+    })();
+  }, [orgId, API_BASE]);
+
+  useEffect(() => {
+    if (!orgId) return;
+    if ((data?.package?.plan_id ?? "demo") !== "demo") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const plan = params.get("plan") as PlanId | null;
+    if (plan !== "starter" && plan !== "consultant") return;
+
+    setSelectedPlan(plan);
+    setShowModal(true);
+  }, [data, orgId]);
+
   /**
    * ✅ IMPORTANT
    * This useEffect MUST be before any return
@@ -38,8 +75,8 @@ function BillingInner() {
 
     const params = new URLSearchParams(window.location.search);
     const success = params.get("success");
-
-    if (success !== "1") return;
+    const sessionId = params.get("session_id");
+    if (success !== "1" && !sessionId) return;
 
     setSyncing(true);
 
@@ -53,6 +90,7 @@ function BillingInner() {
         setSyncing(false);
 
         params.delete("success");
+        params.delete("session_id");
         const next =
           window.location.pathname +
           (params.toString() ? `?${params}` : "");
@@ -85,20 +123,14 @@ function BillingInner() {
   const pkg = data.package;
   const quota = data.quota?.documents_per_month;
   const quotaWindow = data.quota_window;
+  const orgName = data.organization?.name ?? "Your organisation";
+  const orgCountry = data.organization?.country_code ?? "—";
 
   const currentPlan = pkg?.plan_id ?? "demo";
   const showStarter = currentPlan === "demo";
   const showConsultant = currentPlan === "demo" || currentPlan === "starter";
 
-  const canSubmitProfile = Boolean(
-    orgId &&
-      selectedPlan &&
-      profile.contact_name.trim() &&
-      profile.company_name.trim() &&
-      profile.country.trim() &&
-      profile.team_size.trim() &&
-      profile.use_case.trim()
-  );
+  const canSubmitProfile = Boolean(orgId && selectedPlan && profile.contact_name.trim());
 
   async function openBillingPortal() {
     if (!orgId) return;
@@ -123,10 +155,16 @@ function BillingInner() {
     try {
       setSubmitting(true);
 
-      await apiPost("/api/billing/profile", {
-        organization_id: orgId,
-        ...profile,
-      });
+      try {
+        await apiPost("/api/billing/profile", {
+          organization_id: orgId,
+          contact_name: profile.contact_name || null,
+          team_size: profile.team_size || null,
+          use_case: profile.use_case || null,
+        });
+      } catch (e) {
+        console.warn("Billing profile incomplete, proceeding to checkout");
+      }
 
       const { checkout_url } = await createCheckoutSession(orgId, selectedPlan);
       window.location.href = checkout_url;
@@ -270,44 +308,10 @@ function BillingInner() {
                   setProfile({ ...profile, contact_name: e.target.value })
                 }
               />
-              <input
-                className="w-full border rounded px-3 py-2"
-                placeholder="Company / Firm name"
-                value={profile.company_name}
-                onChange={(e) =>
-                  setProfile({ ...profile, company_name: e.target.value })
-                }
-              />
-              <input
-                className="w-full border rounded px-3 py-2"
-                placeholder="Country"
-                value={profile.country}
-                onChange={(e) => setProfile({ ...profile, country: e.target.value })}
-              />
-              <select
-                className="w-full border rounded px-3 py-2"
-                value={profile.team_size}
-                onChange={(e) =>
-                  setProfile({ ...profile, team_size: e.target.value })
-                }
-              >
-                <option value="">Team size</option>
-                <option value="1">Just me</option>
-                <option value="2-5">2–5</option>
-                <option value="6-10">6–10</option>
-                <option value="10+">10+</option>
-              </select>
-              <select
-                className="w-full border rounded px-3 py-2"
-                value={profile.use_case}
-                onChange={(e) =>
-                  setProfile({ ...profile, use_case: e.target.value })
-                }
-              >
-                <option value="">Primary use case</option>
-                <option value="internal">My own organisation</option>
-                <option value="consulting">Client consulting</option>
-              </select>
+              <div className="text-sm text-gray-600">
+                Organisation: <strong>{orgName}</strong><br />
+                Country: <strong>{orgCountry}</strong>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">

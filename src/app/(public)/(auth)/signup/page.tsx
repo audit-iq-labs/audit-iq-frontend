@@ -1,8 +1,8 @@
-// src/app/(public)/signup/page.tsx
+// src/app/(public)/(auth)/signup/page.tsx
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -17,17 +17,32 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const plan = searchParams?.get("plan") ?? undefined;
+
+  useEffect(() => {
+    if (plan) localStorage.setItem("plan_intent", plan);
+    if (next) localStorage.setItem("post_auth_next", next);
+  }, [plan, next]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
+
+    const nextWithPlan = (() => {
+      const url = new URL(next, window.location.origin);
+      if (plan) url.searchParams.set("plan", plan);
+      return url.pathname + url.search;
+    })();
 
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         // Must match Supabase Auth Redirect URLs.
-        options: { emailRedirectTo: `${window.location.origin}/login` },
+        options: {
+          emailRedirectTo: `${window.location.origin}/login?next=${encodeURIComponent(next)}${plan ? `&plan=${encodeURIComponent(plan)}` : ""}`,
+        },
       });
 
       if (error) {
@@ -41,7 +56,7 @@ export default function SignupPage() {
         return;
       }
 
-      router.replace(next);
+      router.replace(nextWithPlan);
       router.refresh();
     } catch (err: unknown) {
       setMsg(err instanceof Error ? err.message : "Signup failed");

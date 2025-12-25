@@ -1,13 +1,23 @@
-// src/app/(public)/signup/page.tsx
+// src/app/(public)/(auth)/login/page.tsx
 
+// src/app/(public)/(auth)/login/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
-async function waitForSession(maxTries = 5) {
+type Plan = "demo" | "starter" | "consultant" | "enterprise";
+
+function normalizePlan(v: string | null): Plan | null {
+  if (!v) return null;
+  const x = v.toLowerCase();
+  if (x === "demo" || x === "starter" || x === "consultant" || x === "enterprise") return x;
+  return null;
+}
+
+async function waitForSession(maxTries = 10) {
   for (let i = 0; i < maxTries; i++) {
     const { data } = await supabase.auth.getSession();
     if (data.session) return data.session;
@@ -19,12 +29,20 @@ async function waitForSession(maxTries = 5) {
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const next = searchParams?.get("next") ?? "/projects";
+  const planFromQuery = normalizePlan(searchParams?.get("plan"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Persist intent (helps when user bounces around auth pages)
+  useEffect(() => {
+    if (planFromQuery) localStorage.setItem("plan_intent", planFromQuery);
+    if (next) localStorage.setItem("post_auth_next", next);
+  }, [planFromQuery, next]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,7 +62,15 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace(next);
+      // Mirror signup: preserve plan intent into redirect target
+      const plan =
+        planFromQuery ??
+        normalizePlan(localStorage.getItem("plan_intent"));
+
+      const url = new URL(next, window.location.origin);
+      if (plan) url.searchParams.set("plan", plan);
+
+      router.replace(url.pathname + url.search);
       router.refresh();
     } catch (err: unknown) {
       setMsg(err instanceof Error ? err.message : "Login failed");
@@ -93,7 +119,12 @@ export default function LoginPage() {
 
         <div className="text-sm mt-4">
           New here?{" "}
-          <Link className="underline" href={`/signup?next=${encodeURIComponent(next)}`}>
+          <Link
+            className="underline"
+            href={`/signup?next=${encodeURIComponent(next)}${
+              planFromQuery ? `&plan=${encodeURIComponent(planFromQuery)}` : ""
+            }`}
+          >
             Create an account
           </Link>
         </div>

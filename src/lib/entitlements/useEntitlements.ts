@@ -72,6 +72,7 @@ export type EntitlementsResponse = {
     id: string;
     name: string | null;
     role?: string | null;
+    country_code?: string | null;
   };
 };
 

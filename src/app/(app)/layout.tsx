@@ -1,3 +1,5 @@
+// src/app/(app)/layout.tsx
+
 import AppNav from "@/components/AppNav";
 import AppAuthGate from "@/components/AppAuthGate";
 
