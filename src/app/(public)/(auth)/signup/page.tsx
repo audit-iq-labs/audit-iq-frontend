@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams?.get("next") ?? "/projects";
+  const next = searchParams?.get("next") ?? "/app/billing";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,7 +41,7 @@ export default function SignupPage() {
         password,
         // Must match Supabase Auth Redirect URLs.
         options: {
-          emailRedirectTo: `${window.location.origin}/login?next=${encodeURIComponent(next)}${plan ? `&plan=${encodeURIComponent(plan)}` : ""}`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         },
       });
 

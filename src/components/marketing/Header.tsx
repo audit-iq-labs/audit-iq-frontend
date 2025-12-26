@@ -1,3 +1,5 @@
+// src/components/marketing/Header.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -63,8 +65,16 @@ export function Header() {
           </NavLink>
         </nav>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/login">Login</Link>
+          </Button>
+
           <Button variant="default" size="sm" asChild>
+            <Link href="/signup">Sign up</Link>
+          </Button>
+
+          <Button variant="outline" size="sm" asChild>
             <Link href="/contact">Request Demo</Link>
           </Button>
         </div>
@@ -142,8 +152,20 @@ export function Header() {
                 Contact
               </NavLink>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
                 <Button variant="default" className="w-full" asChild>
+                  <Link href="/signup" onClick={() => setIsMenuOpen(false)}>
+                    Sign up
+                  </Link>
+                </Button>
+
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                    Login
+                  </Link>
+                </Button>
+
+                <Button variant="ghost" className="w-full" asChild>
                   <Link href="/contact" onClick={() => setIsMenuOpen(false)}>
                     Request Demo
                   </Link>

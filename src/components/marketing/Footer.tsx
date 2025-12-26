@@ -1,3 +1,5 @@
+// src/components/marketing/Footer.tsx
+
 import Image from "next/image";
 import Link from "next/link";
 import { Linkedin, Mail } from "lucide-react";

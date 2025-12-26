@@ -1,4 +1,3 @@
-// src/app/(app)/(onboarding)/onboarding/organization/page.tsx
 "use client";
 
 import * as React from "react";
@@ -14,6 +13,15 @@ function normalizePlan(v: string | null): Plan | null {
   return null;
 }
 
+function safeNext(raw: string | null, fallback: string) {
+  if (!raw) return fallback;
+  // only allow relative paths
+  if (!raw.startsWith("/")) return fallback;
+  // restrict to app routes only (prevents redirecting to random public pages)
+  if (!raw.startsWith("/app")) return fallback;
+  return raw;
+}
+
 type ProfileBasics = {
   team_size: string;
   use_case: string;
@@ -26,14 +34,22 @@ export default function OrgOnboardingPage() {
   const plan =
     normalizePlan(sp.get("plan")) ??
     (typeof window !== "undefined"
-      ? (localStorage.getItem("plan_intent") as Plan | null)
+      ? (normalizePlan(localStorage.getItem("plan_intent")) as Plan | null)
       : null);
 
-  const next = sp.get("next") || "/billing";
+  // IMPORTANT: default to app billing (not "/billing")
+  const next = safeNext(sp.get("next"), "/billing");
 
+  // Demo users should not see org onboarding at all
   React.useEffect(() => {
-    if (plan === "demo") router.replace("/projects");
+    if (plan === "demo") {
+      router.replace("/app/projects");
+      router.refresh();
+    }
   }, [plan, router]);
+
+  // prevent UI flicker while redirecting demo users
+  if (plan === "demo") return null;
 
   const [name, setName] = React.useState("");
   const [countryCode, setCountryCode] = React.useState("AU");
@@ -59,8 +75,9 @@ export default function OrgOnboardingPage() {
         use_case: profile.use_case || null,
       })) as { status: string; organization_id: string };
 
+      // next is sanitized already; keep plan if present (starter/consultant)
       const url = new URL(next, window.location.origin);
-      if (plan) url.searchParams.set("plan", plan);
+      if (plan && plan !== "demo") url.searchParams.set("plan", plan);
       url.searchParams.set("org", res.organization_id);
 
       router.replace(url.pathname + url.search);
@@ -72,9 +89,13 @@ export default function OrgOnboardingPage() {
     }
   }
 
+  // If plan is missing (e.g., user came via header signup), still allow them through.
+  // Billing can be the plan selection step.
+  const paidPlan = plan === "starter" || plan === "consultant" || plan === "enterprise";
+
   const canContinue =
     Boolean(name.trim()) &&
-    (plan === "demo" ? true : Boolean(profile.team_size && profile.use_case));
+    (paidPlan ? Boolean(profile.team_size && profile.use_case) : true);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
@@ -108,8 +129,8 @@ export default function OrgOnboardingPage() {
             <p className="text-xs text-zinc-500 mt-1">Example: AU, IN, DE</p>
           </div>
 
-          {/* Capture team_size + use_case here (recommended for paid plans) */}
-          {plan !== "demo" && (
+          {/* Only require these fields for paid plan paths; demo already skipped */}
+          {paidPlan && (
             <div className="space-y-3">
               <select
                 className="w-full border rounded px-3 py-2"
@@ -146,7 +167,7 @@ export default function OrgOnboardingPage() {
             disabled={loading || !canContinue}
             type="submit"
           >
-            {loading ? "Saving..." : "Continue to billing →"}
+            {loading ? "Saving..." : "Continue →"}
           </button>
         </form>
       </div>
