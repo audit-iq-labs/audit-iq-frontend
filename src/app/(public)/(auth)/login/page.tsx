@@ -1,6 +1,3 @@
-// src/app/(public)/(auth)/login/page.tsx
-
-// src/app/(public)/(auth)/login/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -35,44 +32,73 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
 
-  // Persist intent (helps when user bounces around auth pages)
+  const [msg, setMsg] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+
+  // Forgot/reset mode
+  const [forgotMode, setForgotMode] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+
   useEffect(() => {
     if (planFromQuery) localStorage.setItem("plan_intent", planFromQuery);
     if (next) localStorage.setItem("post_auth_next", next);
   }, [planFromQuery, next]);
 
-  async function onForgotPassword() {
-    if (!email) {
+  function enterForgotMode() {
+    setMsg(null);
+    setForgotMode(true);
+    setPassword(""); // safety
+  }
+
+  function exitForgotMode() {
+    setMsg(null);
+    setForgotMode(false);
+    setPassword("");
+  }
+
+  async function sendResetEmail() {
+    const e = email.trim();
+    if (!e) {
       setMsg("Please enter your email first.");
       return;
     }
 
-    setLoading(true);
+    setSendingReset(true);
     setMsg(null);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(e, {
       redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
     });
 
     if (error) {
       setMsg(error.message);
     } else {
-      setMsg("Password reset email sent. Check your inbox.");
+      setMsg(`Password reset email sent to ${e}. Check your inbox.`);
     }
 
-    setLoading(false);
+    setSendingReset(false);
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    if (forgotMode) return;
+
+    const e1 = email.trim();
+    if (!e1) {
+      setMsg("Please enter your email.");
+      return;
+    }
+
+    setSigningIn(true);
     setMsg(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email: e1,
+        password,
+      });
+
       if (error) {
         setMsg(error.message);
         return;
@@ -84,11 +110,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Mirror signup: preserve plan intent into redirect target
-      const plan =
-        planFromQuery ??
-        normalizePlan(localStorage.getItem("plan_intent"));
-
+      const plan = planFromQuery ?? normalizePlan(localStorage.getItem("plan_intent"));
       const url = new URL(next, window.location.origin);
       if (plan) url.searchParams.set("plan", plan);
 
@@ -97,14 +119,16 @@ export default function LoginPage() {
     } catch (err: unknown) {
       setMsg(err instanceof Error ? err.message : "Login failed");
     } finally {
-      setLoading(false);
+      setSigningIn(false);
     }
   }
+
+  const isBusy = signingIn || sendingReset;
 
   return (
     <div className="flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-xl border p-6 bg-white">
-        <h1 className="text-2xl font-semibold">Login</h1>
+        <h1 className="text-2xl font-semibold">{forgotMode ? "Reset your password" : "Login"}</h1>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-3">
           <input
@@ -114,15 +138,20 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={isBusy}
           />
-          <input
-            className="w-full border rounded-md px-3 py-2"
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+
+          {!forgotMode && (
+            <input
+              className="w-full border rounded-md px-3 py-2"
+              placeholder="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isBusy}
+            />
+          )}
 
           {msg && (
             <div className="text-sm rounded-md bg-zinc-50 border px-3 py-2">
@@ -130,37 +159,66 @@ export default function LoginPage() {
             </div>
           )}
 
-          <button
-            className="w-full rounded-md bg-black text-white px-4 py-2 disabled:opacity-60"
-            disabled={loading}
-            type="submit"
-          >
-            {loading ? "Signing in..." : "Login"}
-          </button>
-
-          <div className="text-right text-sm">
+          {!forgotMode ? (
             <button
-              type="button"
-              onClick={onForgotPassword}
-              className="underline text-zinc-600 hover:text-black"
+              className="w-full rounded-md bg-black text-white px-4 py-2 disabled:opacity-60"
+              disabled={isBusy}
+              type="submit"
             >
-              Forgot password?
+              {signingIn ? "Signing in..." : "Login"}
             </button>
+          ) : (
+            <>
+              <button
+                className="w-full rounded-md bg-black text-white px-4 py-2 disabled:opacity-60"
+                disabled={isBusy}
+                type="button"
+                onClick={sendResetEmail}
+              >
+                {sendingReset ? "Sending…" : "Send reset email"}
+              </button>
+
+              <p className="text-xs text-zinc-500">
+                We’ll email you a secure link to set a new password.
+              </p>
+            </>
+          )}
+
+          {/* Bottom row: Create account + Forgot/Back on same line */}
+          <div className="flex items-center justify-between text-sm pt-1">
+            <div className="min-w-0">
+              <span className="text-zinc-600">New here?</span>{" "}
+              <Link
+                className="underline hover:text-black"
+                href={`/signup?next=${encodeURIComponent(next)}${
+                  planFromQuery ? `&plan=${encodeURIComponent(planFromQuery)}` : ""
+                }`}
+              >
+                Create an account
+              </Link>
+            </div>
+
+            {forgotMode ? (
+              <button
+                type="button"
+                onClick={exitForgotMode}
+                className="underline text-zinc-600 hover:text-black disabled:opacity-60"
+                disabled={isBusy}
+              >
+                Back to login
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={enterForgotMode}
+                className="underline text-zinc-600 hover:text-black disabled:opacity-60"
+                disabled={isBusy}
+              >
+                Forgot password?
+              </button>
+            )}
           </div>
-
         </form>
-
-        <div className="text-sm mt-4">
-          New here?{" "}
-          <Link
-            className="underline"
-            href={`/signup?next=${encodeURIComponent(next)}${
-              planFromQuery ? `&plan=${encodeURIComponent(planFromQuery)}` : ""
-            }`}
-          >
-            Create an account
-          </Link>
-        </div>
       </div>
     </div>
   );
