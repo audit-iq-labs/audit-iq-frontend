@@ -44,6 +44,28 @@ export default function LoginPage() {
     if (next) localStorage.setItem("post_auth_next", next);
   }, [planFromQuery, next]);
 
+  async function onForgotPassword() {
+    if (!email) {
+      setMsg("Please enter your email first.");
+      return;
+    }
+
+    setLoading(true);
+    setMsg(null);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+    });
+
+    if (error) {
+      setMsg(error.message);
+    } else {
+      setMsg("Password reset email sent. Check your inbox.");
+    }
+
+    setLoading(false);
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -115,6 +137,17 @@ export default function LoginPage() {
           >
             {loading ? "Signing in..." : "Login"}
           </button>
+
+          <div className="text-right text-sm">
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="underline text-zinc-600 hover:text-black"
+            >
+              Forgot password?
+            </button>
+          </div>
+
         </form>
 
         <div className="text-sm mt-4">
