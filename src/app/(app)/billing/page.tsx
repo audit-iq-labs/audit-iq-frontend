@@ -6,6 +6,7 @@ import RequireAuth from "@/components/RequireAuth";
 import { useEntitlements } from "@/lib/entitlements/useEntitlements";
 import { createCheckoutSession, createPortalSession } from "@/lib/api/billing";
 import { apiPost } from "@/lib/apiClient";
+import { supabase } from "@/lib/supabaseClient";
 
 type PlanId = "starter" | "consultant";
 
@@ -21,7 +22,7 @@ function BillingInner() {
   const [profile, setProfile] = useState({
     contact_name: "",
     company_name: "",
-    country: "",
+    country_code: "",
     team_size: "",
     use_case: "",
   });
@@ -38,13 +39,25 @@ function BillingInner() {
 
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/billing/profile?organization_id=${orgId}`);
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+
+        const res = await fetch(
+          `${API_BASE}/api/billing/profile?organization_id=${orgId}`,
+          {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          }
+        );
         if (!res.ok) return;
         const p = await res.json();
 
         setProfile((cur) => ({
           ...cur,
           contact_name: cur.contact_name || p.contact_name || "",
+          company_name: cur.company_name || p.company_name || "",
+          country_code: cur.country_code || p.country_code || "",
           team_size: cur.team_size || p.team_size || "",
           use_case: cur.use_case || p.use_case || "",
         }));
@@ -123,14 +136,15 @@ function BillingInner() {
   const pkg = data.package;
   const quota = data.quota?.documents_per_month;
   const quotaWindow = data.quota_window;
-  const orgName = data.organization?.name ?? "Your organisation";
-  const orgCountry = data.organization?.country_code ?? "—";
+  const orgName = profile.company_name || data.organization?.name || "Your organisation";
+  const orgCountry = profile.country_code || data.organization?.country_code || "—";
 
   const currentPlan = pkg?.plan_id ?? "demo";
   const showStarter = currentPlan === "demo";
   const showConsultant = currentPlan === "demo" || currentPlan === "starter";
 
-  const canSubmitProfile = Boolean(orgId && selectedPlan && profile.contact_name.trim());
+  const needsName = !profile.contact_name.trim();
+  const canSubmitProfile = Boolean(orgId && selectedPlan && (!needsName || profile.contact_name.trim()));
 
   async function openBillingPortal() {
     if (!orgId) return;
@@ -159,6 +173,8 @@ function BillingInner() {
         await apiPost("/api/billing/profile", {
           organization_id: orgId,
           contact_name: profile.contact_name || null,
+          company_name: profile.company_name || null,
+          country_code: profile.country_code || null,
           team_size: profile.team_size || null,
           use_case: profile.use_case || null,
         });
@@ -297,21 +313,47 @@ function BillingInner() {
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
-            <h3 className="text-lg font-semibold">Tell us a bit about yourself</h3>
+            <h3 className="text-lg font-semibold">Confirm details</h3>
 
             <div className="space-y-3 text-sm">
-              <input
-                className="w-full border rounded px-3 py-2"
-                placeholder="Your full name"
-                value={profile.contact_name}
-                onChange={(e) =>
-                  setProfile({ ...profile, contact_name: e.target.value })
-                }
-              />
-              <div className="text-sm text-gray-600">
-                Organisation: <strong>{orgName}</strong><br />
-                Country: <strong>{orgCountry}</strong>
+              {/* Contact name */}
+              {needsName ? (
+                <input
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Your full name"
+                  value={profile.contact_name}
+                  onChange={(e) =>
+                    setProfile({ ...profile, contact_name: e.target.value })
+                  }
+                />
+              ) : (
+                <div>
+                  <span className="text-gray-600">Name</span><br />
+                  <strong>{profile.contact_name}</strong>
+                </div>
+              )}
+
+              {/* Organisation */}
+              <div>
+                <span className="text-gray-600">Organisation</span><br />
+                <strong>{orgName}</strong>
               </div>
+
+              {/* Country */}
+              <div>
+                <span className="text-gray-600">Country</span><br />
+                <strong>{orgCountry}</strong>
+              </div>
+
+              {/* Selected plan */}
+              {selectedPlan && (
+                <div>
+                  <span className="text-gray-600">Selected plan</span><br />
+                  <strong>
+                    {selectedPlan === "starter" ? "Starter" : "Consultant"}
+                  </strong>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
@@ -328,7 +370,7 @@ function BillingInner() {
                 disabled={submitting || !canSubmitProfile}
                 title={!canSubmitProfile ? "Please complete all fields" : undefined}
               >
-                {submitting ? "Redirecting…" : "Continue to payment"}
+                {submitting ? "Redirecting…" : "Proceed to payment"}
               </button>
             </div>
           </div>

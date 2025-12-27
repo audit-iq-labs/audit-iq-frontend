@@ -15,10 +15,11 @@ function normalizePlan(v: string | null): Plan | null {
 
 function safeNext(raw: string | null, fallback: string) {
   if (!raw) return fallback;
-  // only allow relative paths
   if (!raw.startsWith("/")) return fallback;
-  // restrict to app routes only (prevents redirecting to random public pages)
-  if (!raw.startsWith("/app")) return fallback;
+  // allow only known in-app routes
+  if (!raw.startsWith("/billing") && !raw.startsWith("/projects") && !raw.startsWith("/onboarding")) {
+    return fallback;
+  }
   return raw;
 }
 
@@ -26,6 +27,15 @@ type ProfileBasics = {
   team_size: string;
   use_case: string;
 };
+
+const COUNTRIES: Array<{ code: string; name: string }> = [
+  { code: "AU", name: "Australia" },
+  { code: "DE", name: "Germany" },
+  { code: "IN", name: "India" },
+  { code: "SG", name: "Singapore" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "US", name: "United States" },
+];
 
 export default function OrgOnboardingPage() {
   const router = useRouter();
@@ -37,19 +47,22 @@ export default function OrgOnboardingPage() {
       ? (normalizePlan(localStorage.getItem("plan_intent")) as Plan | null)
       : null);
 
-  // IMPORTANT: default to app billing (not "/billing")
   const next = safeNext(sp.get("next"), "/billing");
 
   // Demo users should not see org onboarding at all
   React.useEffect(() => {
     if (plan === "demo") {
-      router.replace("/app/projects");
+      // NOTE: your app routes are /projects, not /app/projects
+      router.replace("/projects");
       router.refresh();
     }
   }, [plan, router]);
 
   // prevent UI flicker while redirecting demo users
   if (plan === "demo") return null;
+
+  // NEW: user full name (to be stored in user_profiles via backend)
+  const [fullName, setFullName] = React.useState("");
 
   const [name, setName] = React.useState("");
   const [countryCode, setCountryCode] = React.useState("AU");
@@ -69,13 +82,15 @@ export default function OrgOnboardingPage() {
 
     try {
       const res = (await apiPost("/api/onboarding/organization", {
-        name,
+        // NEW:
+        full_name: fullName.trim() || null,
+
+        name: name.trim(),
         country_code: countryCode || null,
         team_size: profile.team_size || null,
         use_case: profile.use_case || null,
       })) as { status: string; organization_id: string };
 
-      // next is sanitized already; keep plan if present (starter/consultant)
       const url = new URL(next, window.location.origin);
       if (plan && plan !== "demo") url.searchParams.set("plan", plan);
       url.searchParams.set("org", res.organization_id);
@@ -89,16 +104,16 @@ export default function OrgOnboardingPage() {
     }
   }
 
-  // If plan is missing (e.g., user came via header signup), still allow them through.
-  // Billing can be the plan selection step.
   const paidPlan = plan === "starter" || plan === "consultant" || plan === "enterprise";
 
   const canContinue =
+    Boolean(fullName.trim()) && // NEW required
     Boolean(name.trim()) &&
     (paidPlan ? Boolean(profile.team_size && profile.use_case) : true);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    // CHANGED: move card up & reduce scrollbar risk (remove items-center)
+    <div className="min-h-screen flex justify-center px-6 pt-10 pb-6">
       <div className="w-full max-w-lg rounded-xl border p-6 bg-white">
         <h1 className="text-2xl font-semibold">Set up your organisation</h1>
         <p className="text-sm text-zinc-500 mt-1">
@@ -106,6 +121,18 @@ export default function OrgOnboardingPage() {
         </p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          {/* NEW */}
+          <div>
+            <label className="text-sm">Your full name *</label>
+            <input
+              className="w-full border rounded-md px-3 py-2 mt-1"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Gaurav Khandelwal"
+              required
+            />
+          </div>
+
           <div>
             <label className="text-sm">Organisation name *</label>
             <input
@@ -117,16 +144,23 @@ export default function OrgOnboardingPage() {
             />
           </div>
 
+          {/* CHANGED: country dropdown with names */}
           <div>
-            <label className="text-sm">Country (ISO-2)</label>
-            <input
+            <label className="text-sm">Country *</label>
+            <select
               className="w-full border rounded-md px-3 py-2 mt-1"
               value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value.toUpperCase())}
-              placeholder="AU"
-              maxLength={2}
-            />
-            <p className="text-xs text-zinc-500 mt-1">Example: AU, IN, DE</p>
+              onChange={(e) => setCountryCode(e.target.value)}
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-zinc-500 mt-1">
+              We store ISO-2 codes (e.g., AU, IN, DE) for reporting and compliance mapping.
+            </p>
           </div>
 
           {/* Only require these fields for paid plan paths; demo already skipped */}
